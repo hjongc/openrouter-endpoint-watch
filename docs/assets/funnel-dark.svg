@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="430" viewBox="0 0 880 430" role="img" aria-labelledby="title desc">
+<title id="title">How many of 33 listed endpoints can serve my production profile?</title>
+<desc id="desc">A four-stage horizontal bar chart filters 33 listed endpoints down to 4 fully eligible endpoints.</desc>
+<rect x="0.5" y="0.5" width="879" height="429" rx="12" fill="#1a1a19" stroke="#2c2c2a"/>
+<text x="42" y="43" fill="#f0efec" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18px" font-weight="600" text-anchor="start" >How many of 33 listed endpoints can serve my production profile?</text>
+<text x="42" y="69" fill="#c3c2b7" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13px" font-weight="400" text-anchor="start" >z-ai/glm-5.3-flash · OpenRouter snapshot 2026-10-15 · regenerated daily</text>
+<line x1="300" y1="120" x2="300" y2="332" stroke="#383835" stroke-width="1"/>
+<text x="276" y="154" fill="#c3c2b7" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="end" >Listed endpoints</text>
+<path d="M 300 138 H 816 Q 820 138 820 142 V 156 Q 820 160 816 160 H 300 Z" fill="#184f95"/>
+<text x="832" y="154" fill="#f0efec" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >33</text>
+<text x="276" y="210" fill="#c3c2b7" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="end" >Quantization in profile (fp8)</text>
+<path d="M 300 194 H 469.333 Q 473.333 194 473.333 198 V 212 Q 473.333 216 469.333 216 H 300 Z" fill="#256abf"/>
+<text x="485.333" y="210" fill="#f0efec" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >11</text>
+<text x="276" y="266" fill="#c3c2b7" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="end" >+ required parameters</text>
+<path d="M 300 250 H 374.788 Q 378.788 250 378.788 254 V 268 Q 378.788 272 374.788 272 H 300 Z" fill="#3987e5"/>
+<text x="390.788" y="266" fill="#f0efec" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >5</text>
+<text x="276" y="322" fill="#c3c2b7" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="end" >+ healthy (status ≥ 0)</text>
+<path d="M 300 306 H 359.03 Q 363.03 306 363.03 310 V 324 Q 363.03 328 359.03 328 H 300 Z" fill="#86b6ef"/>
+<text x="375.03" y="322" fill="#f0efec" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="600" text-anchor="start" >4 usable</text>
+<text x="42" y="382" fill="#898781" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11px" font-weight="400"><tspan x="42" dy="0">Profile from watch.toml: quantizations fp8; requires seed, response_format, tools, tool_choice.</tspan><tspan x="42" dy="16">Source: snapshots/z-ai__glm-5.3-flash/2026-10-15.json.</tspan></text>
+</svg>
