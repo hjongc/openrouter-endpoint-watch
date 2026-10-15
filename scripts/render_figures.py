@@ -14,7 +14,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from orwatch.config import load_config  # noqa: E402
-from orwatch.core import eligible_endpoints, list_snapshots, read_snapshot  # noqa: E402
+from orwatch.core import (  # noqa: E402
+    diff_snapshots,
+    eligible_endpoints,
+    list_snapshots,
+    read_snapshot,
+)
 
 
 FONT = "system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
@@ -50,20 +55,22 @@ def text(x: float, y: float, value: str, *, fill: str, size: int = 12,
 
 
 def multiline(x: float, y: float, lines: list[str], *, fill: str, size: int = 12,
-              weight: int | str = 400, family: str = FONT, line_height: int = 17) -> str:
+              weight: int | str = 400, family: str = FONT, line_height: int = 17,
+              anchor: str = "start") -> str:
     body = "".join(f'<tspan x="{x:g}" dy="{0 if i == 0 else line_height}">{esc(line)}</tspan>'
                    for i, line in enumerate(lines))
+    anchor_attr = f' text-anchor="{anchor}"' if anchor != "start" else ""
     return (f'<text x="{x:g}" y="{y:g}" fill="{fill}" font-family="{family}" '
-            f'font-size="{size}px" font-weight="{weight}">{body}</text>')
+            f'font-size="{size}px" font-weight="{weight}"{anchor_attr}>{body}</text>')
 
 
-def svg_start(kind: str, mode: str, height: int, title: str, desc: str) -> list[str]:
+def svg_start(kind: str, mode: str, height: int, title: str, desc: str, width: int = 880) -> list[str]:
     p = PALETTES[mode]
     return [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="880" height="{height}" viewBox="0 0 880 {height}" role="img" aria-labelledby="title desc">',
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">',
         f'<title id="title">{esc(title)}</title>',
         f'<desc id="desc">{esc(desc)}</desc>',
-        f'<rect x="0.5" y="0.5" width="879" height="{height - 1}" rx="12" fill="{p["surface"]}" stroke="{p["border"]}"/>',
+        f'<rect x="0.5" y="0.5" width="{width - 1}" height="{height - 1}" rx="12" fill="{p["surface"]}" stroke="{p["border"]}"/>',
     ]
 
 
@@ -188,6 +195,182 @@ def funnel(mode: str, config: dict, snapshot: dict, snapshot_path: Path) -> str:
     return svg_finish(parts)
 
 
+def architecture(mode: str, count: int, eligible_count: int) -> str:
+    p = PALETTES[mode]
+    title = "orwatch: know when your provider set changes"
+    parts = svg_start("architecture", mode, 262, title,
+                      "OpenRouter endpoint metadata is snapshotted, diffed, checked against a profile, and sent to history, issues, and CI gates.", width=1200)
+    parts.append(text(24, 35, title, fill=p["ink"], size=18, weight=600))
+    surface = "#f4f3ef" if mode == "light" else "#232322"
+    node_width, node_height = 207, 82
+    node_y = 106
+    nodes = [
+        (24, "OpenRouter", "public endpoint list", "no API key"),
+        (255, "snapshot", "daily, via GitHub Actions", f"{count} endpoints today"),
+        (486, "diff", "10 named change classes", "fp8 → fp4 = replaced"),
+        (717, "profile check", "fp8 + seed, tools, …", f"{eligible_count} of {count} eligible today"),
+    ]
+    for x, label, line1, line2 in nodes:
+        parts.append(f'<rect x="{x}" y="{node_y}" width="{node_width}" height="{node_height}" rx="10" fill="{surface}" stroke="{p["grid"]}" stroke-width="1"/>')
+        parts.append(text(x + 16, node_y + 29, label, fill=p["ink"], size=14, weight=600))
+        parts.append(text(x + 16, node_y + 48, line1, fill=p["secondary"], size=12))
+        parts.append(text(x + 16, node_y + 64, line2, fill=p["secondary"], size=12))
+
+    for x1, x2 in ((231, 255), (462, 486), (693, 717)):
+        parts.append(f'<line x1="{x1}" y1="{node_y + node_height // 2}" x2="{x2 - 4}" y2="{node_y + node_height // 2}" stroke="{p["muted"]}" stroke-width="1.5"/>')
+        parts.append(f'<path d="M {x2 - 4} {node_y + 37} L {x2} {node_y + 41} L {x2 - 4} {node_y + 45} Z" fill="{p["muted"]}"/>')
+
+    outputs = [
+        (56, p["blue"], "HISTORY.md", "daily timeline"),
+        (120, p["serious"], "GitHub issue", "on a breaking change"),
+        (184, p["critical"], "exit 7", "pre-run gate"),
+    ]
+    # A shared trunk branches to vertically ordered outputs without crossing arrows.
+    trunk_x, output_x, output_width, output_height = 940, 960, 220, 54
+    center_y = node_y + node_height // 2
+    output_centers = [y + output_height // 2 for y, *_ in outputs]
+    parts.append(f'<path d="M 924 {center_y} H {trunk_x} M {trunk_x} {output_centers[0]} V {output_centers[-1]}" fill="none" stroke="{p["muted"]}" stroke-width="1.5"/>')
+    for y, color, label, detail in outputs:
+        cy = y + output_height // 2
+        parts.append(f'<rect x="{output_x}" y="{y}" width="{output_width}" height="{output_height}" rx="8" fill="{surface}" stroke="{p["grid"]}" stroke-width="1"/>')
+        parts.append(f'<line x1="{trunk_x}" y1="{cy}" x2="{output_x - 4}" y2="{cy}" stroke="{p["muted"]}" stroke-width="1.5"/>')
+        parts.append(f'<path d="M {output_x - 4} {cy - 4} L {output_x} {cy} L {output_x - 4} {cy + 4} Z" fill="{p["muted"]}"/>')
+        parts.append(f'<circle cx="{output_x + 12}" cy="{cy}" r="5" fill="{color}"/>')
+        parts.append(text(output_x + 25, y + 23, label, fill=p["ink"], size=13, weight=600))
+        parts.append(text(output_x + 25, y + 41, detail, fill=p["secondary"], size=12))
+    return svg_finish(parts)
+
+
+def board_data() -> tuple[list[dict], int, int, int, int]:
+    config = load_config(ROOT / "examples" / "watch.toml")
+    config["watch"]["snapshot_dir"] = str(ROOT / config["watch"]["snapshot_dir"])
+    profile = config["profiles"]["production"]
+    model = "z-ai/glm-5.3-flash"
+    before = read_snapshot(ROOT / "examples/snapshots/z-ai__glm-5.3-flash/2026-10-07.json")
+    after = read_snapshot(ROOT / "examples/snapshots/z-ai__glm-5.3-flash/2026-10-08.json")
+    changes = diff_snapshots(before, after, {"production": profile}, "2026-10-07", "2026-10-08")
+    before_eps, after_eps = before["endpoints"], after["endpoints"]
+    replace_after: dict[str, dict] = {}
+    changed: dict[str, dict] = {}
+    for change in changes:
+        kind = change["class"]
+        if kind == "endpoint_replaced":
+            replace_after[change["after"]] = change
+            changed[change["after"]] = change
+        elif kind in {"endpoint_removed", "quantization_changed"}:
+            row_tag = change.get("tag") or change.get("before")
+            changed[row_tag] = change
+    rows_by_tag: dict[str, dict] = {}
+    replaced_old = {change["before"] for change in replace_after.values()}
+    for tag in sorted(set(before_eps) | set(after_eps)):
+        if tag in replaced_old:
+            continue
+        old, new = before_eps.get(tag), after_eps.get(tag)
+        if not any(ep and ep.get("quantization", "unknown") in profile["quantizations"] for ep in (old, new)):
+            continue
+        rows_by_tag[tag] = {"tag": tag, "old": old, "new": new, "change": changed.get(tag)}
+    for new_tag, change in replace_after.items():
+        old, new = before_eps[change["before"]], after_eps[new_tag]
+        if any(ep.get("quantization", "unknown") in profile["quantizations"] for ep in (old, new)):
+            rows_by_tag[new_tag] = {"tag": new_tag, "old": old, "new": new, "change": change}
+    eligible_old = set(eligible_endpoints(before, profile))
+    eligible_new = set(eligible_endpoints(after, profile))
+    for row in rows_by_tag.values():
+        if row["change"] and row["change"]["class"] == "endpoint_replaced":
+            row["old_eligible"] = row["change"]["before"] in eligible_old
+            row["new_eligible"] = row["tag"] in eligible_new
+        else:
+            row["old_eligible"] = row["tag"] in eligible_old
+            row["new_eligible"] = row["tag"] in eligible_new
+    rows = sorted(rows_by_tag.values(), key=lambda row: (not row["old_eligible"], (row["new"] or row["old"])["provider_name"].casefold(), row["tag"]))
+    # Remaining identities are the listed endpoints outside the selected quantization set.
+    represented = len(rows)
+    other = max(0, len(set(before_eps) | set(after_eps)) - represented)
+    return rows, len(eligible_old), len(eligible_new), int(profile.get("min_eligible", 1)), other
+
+
+def board(mode: str) -> str:
+    p = PALETTES[mode]
+    rows, eligible_old, eligible_new, minimum, other = board_data()
+    title = "What orwatch diff sees: one bad day, endpoint by endpoint"
+    subtitle = "z-ai/glm-5.3-flash · Oct 7 → Oct 8 · endpoints whose quantization matches the production profile (fp8)"
+    height = 576
+    parts = svg_start("board", mode, height, title,
+                      "An endpoint-by-endpoint board compares production-profile capabilities and eligibility across the October 7 and October 8 snapshots.")
+    parts += [text(24, 34, title, fill=p["ink"], size=18, weight=600),
+              text(24, 58, subtitle, fill=p["secondary"], size=13)]
+    header_baseline = 121
+    header_rule = header_baseline + 10
+    date_xs = (650, 700)
+    parts.append(text((date_xs[0] + date_xs[1]) / 2, 87, "Eligible", fill=p["muted"], size=11, weight=600, anchor="middle"))
+    parts.append(f'<line x1="630" y1="93" x2="720" y2="93" stroke="{p["grid"]}" stroke-width="1"/>')
+    headers = [
+        (24, "Endpoint"), (185, "Quant."), (310, "seed"),
+        (390, "response_format"), (470, "tools"), (550, "tool_choice"),
+        (580, "Status"), (date_xs[0], "Oct 7"), (date_xs[1], "Oct 8"),
+        (752, "Change"),
+    ]
+    for x, label in headers:
+        if label == "response_format":
+            parts.append(multiline(x, header_baseline - 13, ["response_", "format"], fill=p["muted"], size=11, weight=600, line_height=13, anchor="middle"))
+        elif label == "tool_choice":
+            parts.append(multiline(x, header_baseline - 13, ["tool_", "choice"], fill=p["muted"], size=11, weight=600, line_height=13, anchor="middle"))
+        else:
+            parts.append(text(x, header_baseline, label, fill=p["muted"], size=11, weight=600,
+                              anchor="middle" if label in {"seed", "tools", "Oct 7", "Oct 8"} else "start"))
+    parts.append(f'<line x1="24" y1="{header_rule}" x2="856" y2="{header_rule}" stroke="{p["grid"]}" stroke-width="1"/>')
+    body_top = header_rule + 6
+    for index, row in enumerate(rows):
+        y = body_top + index * 28
+        ep = row["new"] or row["old"]
+        old, new, change = row["old"], row["new"], row["change"]
+        if change:
+            wash = "#fdf1ec" if mode == "light" else "#2a201c"
+            parts.append(f'<rect data-row="{index}" x="24" y="{y}" width="832" height="28" fill="{wash}"/>')
+        else:
+            parts.append(f'<g data-row="{index}">')
+        parts.append(text(30, y + 12, ep["provider_name"], fill=p["ink"], size=13, weight=500))
+        parts.append(text(30, y + 24, row["tag"], fill=p["muted"], size=10))
+        old_quant = old.get("quantization", "unknown") if old else None
+        new_quant = new.get("quantization", "unknown") if new else None
+        if old and new and old_quant != new_quant:
+            parts.append(text(185, y + 18, f"{old_quant} → {new_quant}", fill=p["ink"], size=11))
+        else:
+            parts.append(text(185, y + 18, new_quant or old_quant or "", fill=p["ink"], size=11))
+        caps = ep.get("supported_parameters", [])
+        for x, param in zip((310, 390, 470, 550), ("seed", "response_format", "tools", "tool_choice")):
+            parts.append(text(x, y + 18, "✓" if param in caps else "×", fill=p["secondary"] if param in caps else p["muted"], size=13, anchor="middle"))
+        status_ep = new or old
+        status = "ok" if status_ep.get("status", 0) >= 0 else str(status_ep["status"]).replace("-", "−")
+        parts.append(text(580, y + 18, status, fill=p["secondary"], size=11))
+        for x, exists, eligible in ((date_xs[0], old is not None, row["old_eligible"]), (date_xs[1], new is not None, row["new_eligible"])):
+            if exists:
+                if eligible:
+                    parts.append(f'<circle cx="{x}" cy="{y + 14}" r="5" fill="{p["blue"]}"/>')
+                else:
+                    parts.append(f'<circle cx="{x}" cy="{y + 14}" r="5" fill="none" stroke="{p["muted"]}" stroke-width="1.5"/>')
+        if change:
+            kind = change["class"]
+            label = "replaced" if kind in {"endpoint_replaced", "quantization_changed"} else "removed"
+            color = p["critical"] if kind == "endpoint_removed" else p["serious"]
+            parts.append(f'<circle cx="752" cy="{y + 14}" r="5" fill="{color}"/>')
+            parts.append(text(764, y + 18, label, fill=p["ink"], size=12))
+        parts.append(f'<line x1="24" y1="{y + 28}" x2="856" y2="{y + 28}" stroke="{p["grid"]}" stroke-width="1"/>')
+        if not change:
+            parts.append('</g>')
+    footer_y = body_top + len(rows) * 28 + 26
+    if eligible_new < minimum:
+        parts.append(f'<circle cx="29" cy="{footer_y - 4}" r="5" fill="{p["critical"]}"/>')
+        footer_x = 42
+    else:
+        footer_x = 24
+    footer = f"Eligible: {eligible_old} → {eligible_new} · min_eligible {minimum} · check exits 7"
+    parts.append(text(footer_x, footer_y, footer, fill=p["ink"], size=13, weight=600))
+    footnote = f"The other {other} listed endpoints are never eligible for this profile (fp4, nvfp4, unknown)."
+    parts.append(text(24, footer_y + 23, footnote, fill=p["muted"], size=11))
+    return svg_finish(parts)
+
+
 def args_config_label(config: dict) -> str:
     return config.get("_source_label", "watch.toml")
 
@@ -296,6 +479,8 @@ def main() -> int:
         (out / f"incident-{mode}.svg").write_text(incident(mode), encoding="utf-8", newline="\n")
         (out / f"funnel-{mode}.svg").write_text(funnel(mode, config, snapshot, path), encoding="utf-8", newline="\n")
         (out / f"demo-{mode}.svg").write_text(demo(mode), encoding="utf-8", newline="\n")
+        (out / f"architecture-{mode}.svg").write_text(architecture(mode, len(snapshot["endpoints"]), len(eligible_endpoints(snapshot, config.get("profiles", {}).get("production", next(iter(config.get("profiles", {}).values()), {}))))), encoding="utf-8", newline="\n")
+        (out / f"board-{mode}.svg").write_text(board(mode), encoding="utf-8", newline="\n")
     return 0
 
 

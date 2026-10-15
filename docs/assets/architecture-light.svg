@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="262" viewBox="0 0 1200 262" role="img" aria-labelledby="title desc">
+<title id="title">orwatch: know when your provider set changes</title>
+<desc id="desc">OpenRouter endpoint metadata is snapshotted, diffed, checked against a profile, and sent to history, issues, and CI gates.</desc>
+<rect x="0.5" y="0.5" width="1199" height="261" rx="12" fill="#fcfcfb" stroke="#e1e0d9"/>
+<text x="24" y="35" fill="#0b0b0b" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18px" font-weight="600" text-anchor="start" >orwatch: know when your provider set changes</text>
+<rect x="24" y="106" width="207" height="82" rx="10" fill="#f4f3ef" stroke="#e1e0d9" stroke-width="1"/>
+<text x="40" y="135" fill="#0b0b0b" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14px" font-weight="600" text-anchor="start" >OpenRouter</text>
+<text x="40" y="154" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >public endpoint list</text>
+<text x="40" y="170" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >no API key</text>
+<rect x="255" y="106" width="207" height="82" rx="10" fill="#f4f3ef" stroke="#e1e0d9" stroke-width="1"/>
+<text x="271" y="135" fill="#0b0b0b" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14px" font-weight="600" text-anchor="start" >snapshot</text>
+<text x="271" y="154" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >daily, via GitHub Actions</text>
+<text x="271" y="170" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >33 endpoints today</text>
+<rect x="486" y="106" width="207" height="82" rx="10" fill="#f4f3ef" stroke="#e1e0d9" stroke-width="1"/>
+<text x="502" y="135" fill="#0b0b0b" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14px" font-weight="600" text-anchor="start" >diff</text>
+<text x="502" y="154" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >10 named change classes</text>
+<text x="502" y="170" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >fp8 → fp4 = replaced</text>
+<rect x="717" y="106" width="207" height="82" rx="10" fill="#f4f3ef" stroke="#e1e0d9" stroke-width="1"/>
+<text x="733" y="135" fill="#0b0b0b" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14px" font-weight="600" text-anchor="start" >profile check</text>
+<text x="733" y="154" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >fp8 + seed, tools, …</text>
+<text x="733" y="170" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >4 of 33 eligible today</text>
+<line x1="231" y1="147" x2="251" y2="147" stroke="#898781" stroke-width="1.5"/>
+<path d="M 251 143 L 255 147 L 251 151 Z" fill="#898781"/>
+<line x1="462" y1="147" x2="482" y2="147" stroke="#898781" stroke-width="1.5"/>
+<path d="M 482 143 L 486 147 L 482 151 Z" fill="#898781"/>
+<line x1="693" y1="147" x2="713" y2="147" stroke="#898781" stroke-width="1.5"/>
+<path d="M 713 143 L 717 147 L 713 151 Z" fill="#898781"/>
+<path d="M 924 147 H 940 M 940 83 V 211" fill="none" stroke="#898781" stroke-width="1.5"/>
+<rect x="960" y="56" width="220" height="54" rx="8" fill="#f4f3ef" stroke="#e1e0d9" stroke-width="1"/>
+<line x1="940" y1="83" x2="956" y2="83" stroke="#898781" stroke-width="1.5"/>
+<path d="M 956 79 L 960 83 L 956 87 Z" fill="#898781"/>
+<circle cx="972" cy="83" r="5" fill="#2a78d6"/>
+<text x="985" y="79" fill="#0b0b0b" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13px" font-weight="600" text-anchor="start" >HISTORY.md</text>
+<text x="985" y="97" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >daily timeline</text>
+<rect x="960" y="120" width="220" height="54" rx="8" fill="#f4f3ef" stroke="#e1e0d9" stroke-width="1"/>
+<line x1="940" y1="147" x2="956" y2="147" stroke="#898781" stroke-width="1.5"/>
+<path d="M 956 143 L 960 147 L 956 151 Z" fill="#898781"/>
+<circle cx="972" cy="147" r="5" fill="#ec835a"/>
+<text x="985" y="143" fill="#0b0b0b" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13px" font-weight="600" text-anchor="start" >GitHub issue</text>
+<text x="985" y="161" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >on a breaking change</text>
+<rect x="960" y="184" width="220" height="54" rx="8" fill="#f4f3ef" stroke="#e1e0d9" stroke-width="1"/>
+<line x1="940" y1="211" x2="956" y2="211" stroke="#898781" stroke-width="1.5"/>
+<path d="M 956 207 L 960 211 L 956 215 Z" fill="#898781"/>
+<circle cx="972" cy="211" r="5" fill="#d03b3b"/>
+<text x="985" y="207" fill="#0b0b0b" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13px" font-weight="600" text-anchor="start" >exit 7</text>
+<text x="985" y="225" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >pre-run gate</text>
+</svg>
