@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "model_id": "z-ai/glm-5.3-flash",
-  "fetched_at": "2026-10-15T06:46:02Z",
+  "fetched_at": "2026-10-15T07:03:20Z",
   "endpoints": {
     "atlas-cloud/fp8": {
       "name": "AtlasCloud | z-ai/glm-5.3-flash-20260826",
@@ -136,7 +136,7 @@
         "function": false
       },
       "status": 0,
-      "uptime_last_1d": 97.60696156635244,
+      "uptime_last_1d": 97.60869565217392,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -339,7 +339,7 @@
         "function": true
       },
       "status": 0,
-      "uptime_last_1d": 98.32904884318766,
+      "uptime_last_1d": 98.34815756035579,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -435,7 +435,7 @@
         "function": true
       },
       "status": 0,
-      "uptime_last_1d": 87.85211267605634,
+      "uptime_last_1d": 88.01042571676803,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -734,7 +734,7 @@
         "function": true
       },
       "status": 0,
-      "uptime_last_1d": 92.89303661162958,
+      "uptime_last_1d": 93.18018664752333,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -985,7 +985,7 @@
         "function": true
       },
       "status": 0,
-      "uptime_last_1d": 95.40311173974541,
+      "uptime_last_1d": 95.78355586788476,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -1379,7 +1379,7 @@
         "function": false
       },
       "status": 0,
-      "uptime_last_1d": 93.79900213827513,
+      "uptime_last_1d": 94.15538132573059,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -1476,7 +1476,7 @@
         "required": true,
         "function": true
       },
-      "status": -2,
+      "status": 0,
       "uptime_last_1d": 93.05555555555556,
       "supports_implicit_caching": true,
       "native_tools": {},
@@ -1524,7 +1524,7 @@
         "function": true
       },
       "status": 0,
-      "uptime_last_1d": 97.62900976290098,
+      "uptime_last_1d": 97.62735519888346,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
