@@ -151,8 +151,14 @@ report `endpoint_replaced` (with nested `quantization_changed`,
 `parameter_*`, etc.) instead of a bare add + remove. This is how
 "Parasail fp8 → fp4" must appear.
 
-Exit codes: 0 normally; **2** if any change matches `--fail-on`; 1 on error
-(fewer than two snapshots, bad dates, bad config).
+Exit codes: 0 normally, including when exactly one snapshot exists (print a
+one-line note that there is nothing to compare); **2** if any change matches
+`--fail-on`; 1 for zero snapshots, bad dates, or bad config. On the first-day
+history run, a model with exactly one snapshot has no section in the output.
+
+Amendment (2026-10-15): one-snapshot `diff` and `history` runs are successful
+first-day cases; exit 1 is reserved for zero snapshots, bad dates, and bad
+config.
 
 Markdown format (target, exact wording may vary slightly):
 
