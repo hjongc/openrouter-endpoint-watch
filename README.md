@@ -51,10 +51,11 @@ profile as below its minimum.
 </picture>
 
 A model can look abundantly served, with 30-plus endpoints listed, while only a
-handful can run a strict profile. On the day this repository went public
-(2026-10-15) the answer for `z-ai/glm-5.3-flash` was **4 of 33**. This chart and
-the numbers in the diagram at the top are regenerated every day by this
-repository's own workflow, from the snapshots in [`snapshots/`](snapshots/).
+handful can run a strict profile. And that handful moves: on the day this
+repository went public (2026-10-15), the count for `z-ai/glm-5.3-flash` went
+from **5 to 3 of 33 within a few hours**. This chart and the numbers in the
+diagram at the top are regenerated every day by this repository's own
+workflow, from the snapshots in [`snapshots/`](snapshots/).
 
 ## How it works
 
@@ -76,13 +77,20 @@ repository's own workflow, from the snapshots in [`snapshots/`](snapshots/).
 
 ## Why I built this
 
-I run a production LLM pipeline through OpenRouter. It has strict requirements,
-because its outputs are compared run to run: **fp8 weights, plus `seed`,
-`response_format`, `tools` and `tool_choice` support.** On 2026-09-03 I
-benchmarked the providers that met them and pinned three: Reka, Parasail and
-NextBit. Fallbacks off, so a run could never drift to a different setup.
+I build an LLM pipeline that is headed for my company's internal, closed
+network. Until it moves there, it runs through OpenRouter, and I wanted those
+runs to behave like the deployment it is rehearsing for. So I matched the
+quantization the internal environment will use, **fp8**, and required what
+the pipeline depends on: **`seed`, `response_format`, `tools` and
+`tool_choice`.**
 
-Then the ground moved twice, and neither time did anything raise an error.
+Matching the quantization was not enough. Even among fp8 providers, stability
+and speed differed from one host to the next, so on 2026-09-03 I benchmarked
+the ones that qualified and pinned three: Reka, Parasail and NextBit. Fallbacks
+off, so a run could never drift to a different setup.
+
+What I did not expect was the serving conditions themselves to change. They
+changed twice, and neither time did anything raise an error.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/incident-dark.svg">
