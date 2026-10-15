@@ -11,6 +11,27 @@ class ConfigError(ValueError):
     pass
 
 
+def validate_profile(name: str, profile: Any) -> dict[str, Any]:
+    if not isinstance(profile, dict):
+        raise ConfigError(f"profile {name} must be a table")
+    if not isinstance(profile.get("quantizations"), list) or not all(isinstance(v, str) for v in profile["quantizations"]):
+        raise ConfigError(f"profile {name}.quantizations must be a list of strings")
+    for key in ("required_parameters", "pinned", "backup", "preferred_providers"):
+        if key in profile and (not isinstance(profile[key], list) or not all(isinstance(v, str) for v in profile[key])):
+            raise ConfigError(f"profile {name}.{key} must be a list of strings")
+    if "min_eligible" in profile and (
+        isinstance(profile["min_eligible"], bool)
+        or not isinstance(profile["min_eligible"], int)
+        or profile["min_eligible"] < 0
+    ):
+        raise ConfigError(f"profile {name}.min_eligible must be a non-negative integer")
+    if "healthy_only" in profile and not isinstance(profile["healthy_only"], bool):
+        raise ConfigError(f"profile {name}.healthy_only must be a boolean")
+    if "pinned" not in profile and "preferred_providers" in profile:
+        profile["pinned"] = list(profile["preferred_providers"])
+    return profile
+
+
 def load_config(path: str | Path) -> dict[str, Any]:
     try:
         with Path(path).open("rb") as stream:
@@ -29,15 +50,5 @@ def load_config(path: str | Path) -> dict[str, Any]:
     if not isinstance(profiles, dict):
         raise ConfigError("profiles must be tables")
     for name, profile in profiles.items():
-        if not isinstance(profile, dict):
-            raise ConfigError(f"profile {name} must be a table")
-        if not isinstance(profile.get("quantizations"), list) or not all(isinstance(v, str) for v in profile["quantizations"]):
-            raise ConfigError(f"profile {name}.quantizations must be a list of strings")
-        for key in ("required_parameters", "preferred_providers"):
-            if key in profile and (not isinstance(profile[key], list) or not all(isinstance(v, str) for v in profile[key])):
-                raise ConfigError(f"profile {name}.{key} must be a list of strings")
-        if "min_eligible" in profile and (not isinstance(profile["min_eligible"], int) or profile["min_eligible"] < 0):
-            raise ConfigError(f"profile {name}.min_eligible must be a non-negative integer")
-        if "healthy_only" in profile and not isinstance(profile["healthy_only"], bool):
-            raise ConfigError(f"profile {name}.healthy_only must be a boolean")
+        validate_profile(name, profile)
     return config

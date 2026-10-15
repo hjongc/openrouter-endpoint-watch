@@ -13,7 +13,19 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 from .config import ConfigError, load_config
-from .core import diff_snapshots, eligible_endpoints, list_snapshots, normalize_response, read_snapshot, snapshot_label, utc_now, write_snapshot
+from .core import (
+    _provider_lists,
+    _provider_selection,
+    decide,
+    diff_snapshots,
+    eligible_endpoints,
+    list_snapshots,
+    normalize_response,
+    read_snapshot,
+    snapshot_label,
+    utc_now,
+    write_snapshot,
+)
 
 
 def fetch_endpoints(model_id: str) -> dict[str, Any]:
@@ -104,6 +116,10 @@ def _render_markdown(model_id: str, from_day: str, to_day: str, changes: list[di
                 minimum = str(item.get("min_eligible", "below minimum"))
                 line += f"  **below min_eligible={minimum}**"
             lines.append(line)
+        elif kind == "pinned_dropped":
+            lines.append(f"- pinned_dropped  {item['profile']}: {item['provider']} ({item['reason']})")
+        elif kind == "pinned_restored":
+            lines.append(f"- pinned_restored  {item['profile']}: {item['provider']}")
         else:
             lines.append(f"- {kind}  {item.get('tag', item.get('profile', ''))}")
     return "\n".join(lines).rstrip() + "\n"
@@ -203,7 +219,7 @@ def cmd_diff(args: argparse.Namespace) -> int:
 
 
 def _profile_for_check(args: argparse.Namespace, config: dict[str, Any] | None) -> dict[str, Any]:
-    adhoc_given = args.quant is not None or args.require is not None or args.min is not None
+    adhoc_given = any(value is not None for value in (args.quant, args.require, args.min, args.pinned, args.backup))
     if args.profile and adhoc_given:
         raise ConfigError("use either --profile or the ad-hoc flags")
     if args.profile:
@@ -217,7 +233,85 @@ def _profile_for_check(args: argparse.Namespace, config: dict[str, Any] | None) 
         raise ConfigError("use either --profile or the ad-hoc flags (--quant and --min)")
     if args.quant is None or args.min is None:
         raise ConfigError("ad-hoc check requires both --quant and --min")
-    return {"quantizations": [v for v in args.quant.split(",") if v], "required_parameters": [v for v in (args.require or "").split(",") if v], "min_eligible": args.min, "healthy_only": True}
+    return {
+        "quantizations": [v for v in args.quant.split(",") if v],
+        "required_parameters": [v for v in (args.require or "").split(",") if v],
+        "min_eligible": args.min,
+        "healthy_only": True,
+        "pinned": [v for v in (args.pinned or "").split(",") if v],
+        "backup": [v for v in (args.backup or "").split(",") if v],
+    }
+
+
+def _decision_clock(decision) -> str:
+    if not decision.checked_at:
+        return ""
+    try:
+        value = datetime.fromisoformat(decision.checked_at.replace("Z", "+00:00"))
+    except ValueError:
+        return decision.checked_at
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+
+def _decision_source(decision) -> str:
+    if decision.source == "live":
+        stamp = _decision_clock(decision)
+        return f"live {stamp}" if stamp else "live"
+    return f"snapshot {decision.source}"
+
+
+def _pinned_status_rows(snapshot: dict[str, Any], profile: dict[str, Any]) -> list[tuple[str, str, str, str]]:
+    pinned, backups = _provider_lists(profile)
+    rows = []
+    for kind, selectors in (("pinned", pinned), ("backup", backups)):
+        for selector in selectors:
+            selection = _provider_selection(snapshot, profile, selector)
+            if selection["usable"]:
+                tags = ", ".join(tag for tag, _ in selection["usable_endpoints"])
+                rows.append((kind, selection["provider"], "usable", tags))
+            else:
+                rows.append((kind, selection["provider"], "dropped", selection["reason"] or "not listed"))
+    return rows
+
+
+def _render_check_text(model: str, snapshot: dict[str, Any], profile: dict[str, Any], decision) -> str:
+    pinned, _ = _provider_lists(profile)
+    lines: list[str] = []
+    minimum = decision.min_eligible
+    if pinned:
+        lines.append(f"{model}: {decision.status.upper()} · {_decision_source(decision)}")
+        rows = _pinned_status_rows(snapshot, profile)
+        name_width = max((len(provider) for _, provider, _, _ in rows), default=0)
+        for kind, provider, state, detail in rows:
+            lines.append(f"  {kind:<6}  {provider:<{name_width}}  {state:<7}  {detail}")
+        if decision.status == "blocked":
+            provider_word = "provider" if len(decision.providers) == 1 else "providers"
+            lines.append(f"  → {len(decision.providers)} usable {provider_word}, need {minimum} · not running")
+        elif decision.status == "degraded":
+            dropped = [row[1] for row in rows if row[0] == "pinned" and row[2] == "dropped"]
+            suffix = f" ({', '.join(dropped)} dropped)" if dropped else ""
+            if decision.backup_used:
+                suffix = f" (backup: {', '.join(decision.backup_used)}{'; ' + ', '.join(dropped) + ' dropped' if dropped else ''})"
+            lines.append(f"  → running on {', '.join(decision.providers)}{suffix}")
+        else:
+            lines.append(f"  → running on {', '.join(decision.providers)}")
+    else:
+        status = decision.status.upper()
+        suffix = (
+            f" · {status} · live {_decision_clock(decision)}"
+            if decision.source == "live"
+            else f" (snapshot {decision.source}) · {status}"
+        )
+        lines.append(f"{model}: {decision.eligible_endpoints} eligible endpoint(s) (minimum {minimum}){suffix}")
+        eligible = eligible_endpoints(snapshot, profile)
+        for tag, endpoint in eligible.items():
+            lines.append(
+                f"  {endpoint.get('provider_name', 'unknown')}  {tag}  "
+                f"{endpoint.get('quantization', 'unknown')}  status {endpoint.get('status', 0)}"
+            )
+    return "\n".join(lines)
 
 
 def cmd_check(args: argparse.Namespace) -> int:
@@ -230,34 +324,40 @@ def cmd_check(args: argparse.Namespace) -> int:
         raise ConfigError("offline ad-hoc check requires a config file with snapshot_dir")
     models = [args.model] if adhoc else _models(config, args.model)
     snapshot_dir = _snapshot_dir(config)
-    failures = []
+    decisions = []
     for model in models:
         if args.offline:
             paths = list_snapshots(snapshot_dir, model)
             if not paths:
                 raise ValueError(f"no snapshots for {model}")
             snapshot = read_snapshot(paths[-1])
-            snapshot_stamp = snapshot_label(paths[-1].stem)
+            source_label = snapshot_label(paths[-1].stem)
         else:
             snapshot = normalize_response(model, fetch_endpoints(model), utc_now())
-            snapshot_stamp = None
-        eligible = eligible_endpoints(snapshot, profile)
-        suffix = f" (snapshot {snapshot_stamp})" if snapshot_stamp else ""
-        print(f"{model}: {len(eligible)} eligible endpoint(s) (minimum {profile.get('min_eligible', 1)}){suffix}")
-        print("provider\ttag\tquantization\tstatus\tprompt\tcompletion")
-        for tag, ep in sorted(eligible.items()):
-            pricing = ep.get("pricing", {})
-            print(f"{ep.get('provider_name', 'unknown')}\t{tag}\t{ep.get('quantization', 'unknown')}\t{ep.get('status', 0)}\t{pricing.get('prompt', '')}\t{pricing.get('completion', '')}")
-        for provider in profile.get("preferred_providers", []):
-            available = any(ep.get("provider_name") == provider for ep in eligible.values())
-            print(f"preferred {provider}: {'eligible' if available else 'not eligible'}")
-        minimum = int(profile.get("min_eligible", 1))
-        if len(eligible) < minimum:
-            failures.append(f"{args.profile or 'adhoc'}: {len(eligible)} eligible endpoint for {model}, min_eligible={minimum}")
-    if failures:
-        for reason in failures:
-            print(reason, file=sys.stderr)
+            source_label = "live"
+        decisions.append((snapshot, decide(snapshot, profile, source_label=source_label)))
+
+    if args.record:
+        record_path = Path(args.record)
+        record_path.parent.mkdir(parents=True, exist_ok=True)
+        with record_path.open("a", encoding="utf-8") as stream:
+            for _, decision in decisions:
+                stream.write(json.dumps(decision.to_dict(), ensure_ascii=False, separators=(",", ":")) + "\n")
+
+    if args.format == "json":
+        print(json.dumps([decision.to_dict() for _, decision in decisions], indent=2, ensure_ascii=False))
+    else:
+        for model, (snapshot, decision) in zip(models, decisions):
+            print(_render_check_text(model, snapshot, profile, decision))
+
+    degraded = [(model, decision) for model, (_, decision) in zip(models, decisions) if decision.status == "degraded"]
+    blocked = any(decision.status == "blocked" for _, decision in decisions)
+    for model, decision in degraded:
+        print(f"warning: {model} is degraded; routing through {', '.join(decision.providers)}", file=sys.stderr)
+    if blocked:
         return 7
+    if degraded and args.strict:
+        return 3
     return 0
 
 
@@ -330,6 +430,11 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--quant")
     check.add_argument("--require")
     check.add_argument("--min", type=int)
+    check.add_argument("--pinned")
+    check.add_argument("--backup")
+    check.add_argument("--format", choices=("text", "json"), default="text")
+    check.add_argument("--strict", action="store_true")
+    check.add_argument("--record")
     check.set_defaults(func=cmd_check)
     history = sub.add_parser("history")
     history.add_argument("--config", default="watch.toml")

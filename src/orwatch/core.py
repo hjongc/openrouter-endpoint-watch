@@ -4,11 +4,64 @@ from __future__ import annotations
 
 import json
 import warnings
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
 VOLATILE_FIELDS = {"latency_last_30m", "throughput_last_30m", "uptime_last_5m", "uptime_last_30m"}
+CHANGE_CLASSES = (
+    "endpoint_replaced",
+    "endpoint_removed",
+    "endpoint_added",
+    "quantization_changed",
+    "status_changed",
+    "parameter_added",
+    "parameter_removed",
+    "price_changed",
+    "context_changed",
+    "profile_eligible_changed",
+    "pinned_dropped",
+    "pinned_restored",
+)
+
+
+@dataclass(frozen=True)
+class Decision:
+    model_id: str
+    status: str
+    providers: list[str]
+    route: list[str]
+    quantizations: tuple[str, ...]
+    dropped: list[dict[str, str]]
+    backup_used: list[str]
+    min_eligible: int
+    eligible_endpoints: int
+    source: str
+    checked_at: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "model_id": self.model_id,
+            "status": self.status,
+            "providers": list(self.providers),
+            "route": list(self.route),
+            "quantizations": list(self.quantizations),
+            "dropped": [dict(item) for item in self.dropped],
+            "backup_used": list(self.backup_used),
+            "min_eligible": self.min_eligible,
+            "eligible_endpoints": self.eligible_endpoints,
+            "source": self.source,
+            "checked_at": self.checked_at,
+        }
+
+    def provider_preferences(self, profile: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        return {
+            "order": list(self.route),
+            "allow_fallbacks": False,
+            "require_parameters": True,
+            "quantizations": list(profile.get("quantizations", [])) if profile is not None else list(self.quantizations),
+        }
 
 
 def utc_now() -> str:
@@ -100,6 +153,161 @@ def eligible_endpoints(snapshot: Mapping[str, Any], profile: Mapping[str, Any]) 
     return {tag: ep for tag, ep in snapshot.get("endpoints", {}).items() if endpoint_eligible(ep, profile)}
 
 
+def _provider_lists(profile: Mapping[str, Any]) -> tuple[list[str], list[str]]:
+    pinned = profile.get("pinned", profile.get("preferred_providers", []))
+    backup = profile.get("backup", [])
+    return list(pinned or []), list(backup or [])
+
+
+def _selector_matches(selector: str, tag: str, endpoint: Mapping[str, Any]) -> bool:
+    provider_name = str(endpoint.get("provider_name", "unknown"))
+    base_tag = tag.split("/", 1)[0]
+    return (
+        selector.casefold() == provider_name.casefold()
+        or selector == tag
+        or selector == base_tag
+    )
+
+
+def _provider_selection(
+    snapshot: Mapping[str, Any], profile: Mapping[str, Any], selector: str
+) -> dict[str, Any]:
+    endpoints = [
+        (tag, endpoint)
+        for tag, endpoint in snapshot.get("endpoints", {}).items()
+        if _selector_matches(selector, tag, endpoint)
+    ]
+    usable = [(tag, endpoint) for tag, endpoint in endpoints if endpoint_eligible(endpoint, profile)]
+    display_name = str(endpoints[0][1].get("provider_name") or selector) if endpoints else selector
+    reason: str | None = None
+    if not endpoints:
+        reason = "not listed"
+    elif not usable:
+        allowed = list(profile.get("quantizations", []))
+        allowed_quant = [(tag, endpoint) for tag, endpoint in endpoints
+                         if endpoint.get("quantization", "unknown") in allowed]
+        if not allowed_quant:
+            present = list(dict.fromkeys(str(ep.get("quantization", "unknown")) for _, ep in endpoints))
+            reason = f"quantization {', '.join(present)} not in {', '.join(allowed) or 'none'}"
+        else:
+            required = set(profile.get("required_parameters", []))
+            missing_by_endpoint = [
+                (sorted(required - set(endpoint.get("supported_parameters", []))), tag, endpoint)
+                for tag, endpoint in allowed_quant
+            ]
+            missing, _, _ = min(missing_by_endpoint, key=lambda row: (len(row[0]), row[1]))
+            if missing:
+                reason = f"missing {', '.join(missing)}"
+            elif profile.get("healthy_only", True):
+                unhealthy = next((endpoint for _, endpoint in allowed_quant if endpoint.get("status", 0) < 0), None)
+                if unhealthy is not None:
+                    reason = f"unhealthy (status {unhealthy.get('status', 0)})"
+    return {
+        "selector": selector,
+        "provider": display_name,
+        "endpoints": endpoints,
+        "usable_endpoints": usable,
+        "usable": bool(usable),
+        "reason": reason,
+    }
+
+
+def _checked_at(snapshot: Mapping[str, Any]) -> str:
+    value = snapshot.get("fetched_at")
+    if not isinstance(value, str) or not value:
+        raise ValueError("snapshot requires fetched_at")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError(f"invalid snapshot fetched_at: {value}") from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    parsed = parsed.astimezone(timezone.utc)
+    timespec = "microseconds" if parsed.microsecond else "seconds"
+    return parsed.isoformat(timespec=timespec).replace("+00:00", "Z")
+
+
+def _append_selection(selection: Mapping[str, Any], providers: list[str], route: list[str]) -> list[str]:
+    added: list[str] = []
+    provider_keys = {provider.casefold() for provider in providers}
+    for tag, endpoint in selection["usable_endpoints"]:
+        provider = str(endpoint.get("provider_name", "unknown"))
+        if provider.casefold() not in provider_keys:
+            providers.append(provider)
+            provider_keys.add(provider.casefold())
+            added.append(provider)
+        if tag not in route:
+            route.append(tag)
+    return added
+
+
+def decide(snapshot: Mapping[str, Any], profile: Mapping[str, Any], *, source_label: str) -> Decision:
+    """Evaluate a snapshot into an ordered, endpoint-tag routing decision."""
+    eligible = eligible_endpoints(snapshot, profile)
+    minimum = profile.get("min_eligible", 1)
+    if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 0:
+        raise ValueError("profile min_eligible must be a non-negative integer")
+    pinned, backups = _provider_lists(profile)
+    providers: list[str] = []
+    route: list[str] = []
+    dropped: list[dict[str, str]] = []
+    backup_used: list[str] = []
+
+    if not pinned:
+        provider_names = {
+            str(endpoint.get("provider_name", "unknown"))
+            for endpoint in eligible.values()
+        }
+        providers = sorted(provider_names, key=lambda value: (value.casefold(), value))
+        route = list(eligible)
+        status = "ok" if len(eligible) >= minimum else "blocked"
+        for selector in backups:
+            selection = _provider_selection(snapshot, profile, selector)
+            if not selection["usable"]:
+                dropped.append({"provider": selection["provider"], "reason": selection["reason"] or "not listed"})
+    else:
+        pinned_selections = [_provider_selection(snapshot, profile, selector) for selector in pinned]
+        backup_selections = [_provider_selection(snapshot, profile, selector) for selector in backups]
+        for selection in pinned_selections:
+            if selection["usable"]:
+                _append_selection(selection, providers, route)
+            else:
+                dropped.append({"provider": selection["provider"], "reason": selection["reason"] or "not listed"})
+        for selection in backup_selections:
+            if not selection["usable"]:
+                dropped.append({"provider": selection["provider"], "reason": selection["reason"] or "not listed"})
+
+        all_pinned_usable = all(selection["usable"] for selection in pinned_selections)
+        if all_pinned_usable:
+            status = "ok"
+        elif len(providers) >= minimum:
+            status = "degraded"
+        else:
+            for selection in backup_selections:
+                if len(providers) >= minimum:
+                    break
+                if not selection["usable"]:
+                    continue
+                added = _append_selection(selection, providers, route)
+                if added:
+                    backup_used.extend(added)
+            status = "degraded" if len(providers) >= minimum else "blocked"
+
+    return Decision(
+        model_id=str(snapshot.get("model_id", "unknown")),
+        status=status,
+        providers=providers,
+        route=route,
+        quantizations=tuple(str(value) for value in profile.get("quantizations", [])),
+        dropped=dropped,
+        backup_used=backup_used,
+        min_eligible=minimum,
+        eligible_endpoints=len(eligible),
+        source=source_label,
+        checked_at=_checked_at(snapshot),
+    )
+
+
 def _field_changes(before: Mapping[str, Any], after: Mapping[str, Any]) -> list[dict[str, Any]]:
     changes: list[dict[str, Any]] = []
     if before.get("quantization", "unknown") != after.get("quantization", "unknown"):
@@ -157,7 +365,17 @@ def diff_snapshots(
         if bset != aset:
             lost, gained = sorted(bset - aset), sorted(aset - bset)
             minimum = int(profile.get("min_eligible", 1))
-            changes.append({"model_id": model_id, "from": from_date, "to": to_date, "class": "profile_eligible_changed", "profile": name, "before": len(bset), "after": len(aset), "before_tags": sorted(bset), "after_tags": sorted(aset), "lost": lost, "gained": gained, "below_min": len(aset) < minimum, "min_eligible": minimum})
-    rank = {"endpoint_replaced": 0, "endpoint_removed": 1, "endpoint_added": 2, "quantization_changed": 3, "status_changed": 4, "parameter_added": 5, "parameter_removed": 6, "price_changed": 7, "context_changed": 8, "profile_eligible_changed": 9}
+            after_decision = decide(after, profile, source_label="snapshot")
+            changes.append({"model_id": model_id, "from": from_date, "to": to_date, "class": "profile_eligible_changed", "profile": name, "before": len(bset), "after": len(aset), "before_tags": sorted(bset), "after_tags": sorted(aset), "lost": lost, "gained": gained, "below_min": after_decision.status == "blocked", "min_eligible": minimum})
+        pinned, backups = _provider_lists(profile)
+        if pinned or backups:
+            for selector in pinned:
+                old_selection = _provider_selection(before, profile, selector)
+                new_selection = _provider_selection(after, profile, selector)
+                if old_selection["usable"] and not new_selection["usable"]:
+                    changes.append({"model_id": model_id, "from": from_date, "to": to_date, "class": "pinned_dropped", "profile": name, "provider": old_selection["provider"], "reason": new_selection["reason"] or "not listed"})
+                elif not old_selection["usable"] and new_selection["usable"]:
+                    changes.append({"model_id": model_id, "from": from_date, "to": to_date, "class": "pinned_restored", "profile": name, "provider": new_selection["provider"]})
+    rank = {change_class: index for index, change_class in enumerate(CHANGE_CLASSES)}
     changes.sort(key=lambda c: (rank.get(c["class"], 20), c.get("provider_name", ""), c.get("tag", ""), c.get("profile", "")))
     return changes

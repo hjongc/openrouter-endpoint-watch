@@ -5,6 +5,6 @@ snapshot_dir = "snapshots"
 [profiles.production]
 quantizations = ["fp8"]
 required_parameters = ["seed", "response_format", "tools", "tool_choice"]
-min_eligible = 2
-preferred_providers = ["Near AI", "Inceptron"]
+pinned = ["Near AI", "Inceptron"]
+min_eligible = 1
 healthy_only = true

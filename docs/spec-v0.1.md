@@ -213,6 +213,79 @@ introduction names the configured snapshot directory. Writes to stdout or
 Amendment 2026-10-15: history always emits this document structure, including
 for models with one snapshot, no changes, or no snapshots.
 
+## Amendment 2026-10-15 (routing decision)
+
+This amendment supersedes the earlier `check` pass/fail description above.
+
+### 1. Profile fields
+
+Profiles may define `pinned` and `backup` as ordered lists of provider
+selectors. A selector matches an endpoint when it equals the endpoint's
+`provider_name` case-insensitively, its full `tag`, or the tag's base slug
+(the portion before the first `/`). A provider is usable when at least one
+matching endpoint is eligible under the profile. `min_eligible` counts usable
+providers when `pinned` is non-empty; without pinned providers it continues to
+count eligible endpoints. `preferred_providers` remains accepted as a
+deprecated alias for `pinned` only when `pinned` is absent. Profile field types
+are validated; unrecognized profile keys remain allowed.
+
+### 2. Routing decision
+
+`decide(snapshot, profile, *, source_label)` returns a frozen `Decision` with
+the model, status (`ok`, `degraded`, or `blocked`), usable provider names,
+route tags, dropped pinned and backup providers with reasons, backups used,
+minimum, all eligible endpoint count, source label, and UTC snapshot time.
+When pinned providers are configured, usable pinned providers stay in their
+configured order. If some are unavailable, the check continues with the
+remaining pinned providers and adds usable backups in order only when needed
+to reach `min_eligible`. It is blocked only when the final usable provider set
+is below that minimum. Without pinned providers, the old eligible-endpoint
+count decision remains in effect.
+
+The route contains eligible endpoint tags in provider order and snapshot
+order. OpenRouter `provider.order` receives these full tags (such as
+`parasail/fp8`), never base provider slugs, because a base slug selects all of
+that provider's endpoints. `Decision.provider_preferences(profile)` returns
+`order`, `allow_fallbacks = false`, `require_parameters = true`, and the
+profile's `quantizations`. Non-usable providers are explained in this order:
+not listed; no allowed quantization; missing required parameters from the
+closest allowed-quantization endpoint; unhealthy status.
+
+### 3. Python API
+
+`orwatch.check(model_id=None, profile="production", *, config="watch.toml",
+offline=False, max_age=300, raise_on_blocked=False, fetch=None)` returns a
+`Decision`. A profile name is read from the config; a profile dict can be used
+without a config when the model is supplied and the check is live. An omitted
+model defaults to the first configured model. Live fetch is the default and
+`fetch(model_id)` can be injected. Offline checks read the latest snapshot in
+the configured snapshot directory. Results are cached in-process by model,
+profile contents, and offline mode for `max_age` seconds using a monotonic
+clock; zero disables the cache. `raise_on_blocked=True` raises
+`ProviderSetBlocked` carrying the decision.
+
+### 4. `orwatch check`
+
+For pinned profiles, text output reports the source and timestamp, each pinned
+and backup provider's usability and reason, then the route or the blocked
+minimum. Without pinned providers it lists eligible endpoints and the endpoint
+count. `--format json` prints a JSON array of `Decision.to_dict()` objects;
+`--record FILE` appends one JSON line per model. A degraded decision exits 0
+with a warning on stderr by default, or 3 with `--strict`; any blocked model
+makes the overall exit code 7. The ad-hoc form also accepts comma-separated
+`--pinned` and `--backup` selectors alongside `--quant`, `--require`, and
+`--min`.
+
+### 5. Diff change classes
+
+The named classes are listed in `core.CHANGE_CLASSES`. For profiles with
+pinned or backup selectors, `pinned_dropped` records a pinned provider that
+was usable in the older snapshot and is no longer usable, including its
+reason; `pinned_restored` records the reverse transition. Markdown renders
+these as, for example, `- pinned_dropped  production: Reka (quantization
+unknown not in fp8)`. The scheduled workflow treats `pinned_dropped` as a
+breaking change.
+
 ## GitHub Actions
 
 Amendment 2026-10-15 (hourly, save on change):

@@ -43,7 +43,7 @@ jobs:
         run: |
           set -o pipefail
           set +e
-          orwatch diff --format md --fail-on quantization_changed,endpoint_removed,endpoint_replaced,profile_eligible_changed > endpoint-diff.md
+          orwatch diff --format md --fail-on quantization_changed,endpoint_removed,endpoint_replaced,profile_eligible_changed,pinned_dropped > endpoint-diff.md
           result=$?
           set -e
           cat endpoint-diff.md

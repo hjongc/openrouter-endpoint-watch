@@ -4,8 +4,9 @@ import json
 import pytest
 
 from orwatch.cli import main
+from orwatch import ProviderSetBlocked, check
 from orwatch.config import ConfigError, load_config
-from orwatch.core import diff_snapshots, eligible_endpoints, list_snapshots, normalize_response
+from orwatch.core import CHANGE_CLASSES, decide, diff_snapshots, eligible_endpoints, list_snapshots, normalize_response, read_snapshot
 
 FIXTURE = "tests/fixtures/glm-5.3-flash.endpoints.2026-10-15.json"
 MODEL = "z-ai/glm-5.3-flash"
@@ -150,7 +151,8 @@ def test_adhoc_check_with_default_config_returns_seven_below_minimum(tmp_path, m
     result = main(["check", "--model", MODEL, "--quant", "fp8", "--require", "seed", "--min", "2"])
 
     assert result == 7
-    assert "adhoc: 1 eligible endpoint" in capsys.readouterr().err
+    output = capsys.readouterr()
+    assert "1 eligible endpoint(s) (minimum 2)" in output.out
 
 
 def test_adhoc_check_without_config_uses_explicit_model(tmp_path, monkeypatch, capsys):
@@ -358,3 +360,260 @@ def test_date_selector_uses_last_snapshot_of_day_and_history_labels(tmp_path, ca
     history = capsys.readouterr().out
     assert "Tracking since 2026-10-14 · 4 change snapshots · latest 2026-10-16 03:17 UTC" in history
     assert "### 2026-10-15 03:17 UTC → 2026-10-15 09:17 UTC" in history
+
+
+def test_decide_all_pinned_and_unpinned_branches():
+    profile = {"quantizations": ["fp8"], "required_parameters": [], "pinned": ["A", "B"], "min_eligible": 2}
+    all_pinned = snapshot({"a/fp8": endpoint("a/fp8", "A"), "b/fp8": endpoint("b/fp8", "B")})
+    decision = decide(all_pinned, profile, source_label="live")
+    assert decision.status == "ok"
+    assert decision.providers == ["A", "B"]
+    assert decision.route == ["a/fp8", "b/fp8"]
+    assert decision.source == "live"
+    assert decision.checked_at == "2026-10-15T00:00:00Z"
+    expected_preferences = {
+        "order": ["a/fp8", "b/fp8"], "allow_fallbacks": False,
+        "require_parameters": True, "quantizations": ["fp8"],
+    }
+    assert decision.provider_preferences() == expected_preferences
+    assert decision.provider_preferences(profile) == expected_preferences
+    assert decision.provider_preferences({"quantizations": ["fp4"]})["quantizations"] == ["fp4"]
+    assert decision.to_dict()["quantizations"] == ["fp8"]
+
+    degraded = snapshot({"a/fp8": endpoint("a/fp8", "A"), "b/fp4": endpoint("b/fp4", "B", quant="fp4")})
+    decision = decide(degraded, {**profile, "min_eligible": 1}, source_label="2026-10-15")
+    assert decision.status == "degraded"
+    assert decision.providers == ["A"]
+    assert decision.dropped == [{"provider": "B", "reason": "quantization fp4 not in fp8"}]
+
+    with_backup = snapshot({
+        "a/fp8": endpoint("a/fp8", "A"),
+        "b/fp4": endpoint("b/fp4", "B", quant="fp4"),
+        "c/fp8": endpoint("c/fp8", "C"),
+    })
+    backup_profile = {**profile, "pinned": ["A", "B"], "backup": ["C"]}
+    decision = decide(with_backup, backup_profile, source_label="x")
+    assert decision.status == "degraded"
+    assert decision.providers == ["A", "C"]
+    assert decision.route == ["a/fp8", "c/fp8"]
+    assert decision.backup_used == ["C"]
+
+    blocked = snapshot({"b/fp4": endpoint("b/fp4", "B", quant="fp4"), "c/fp8": endpoint("c/fp8", "C")})
+    decision = decide(blocked, backup_profile, source_label="x")
+    assert decision.status == "blocked"
+    assert decision.providers == ["C"]
+    assert decision.route == ["c/fp8"]
+    assert decision.backup_used == ["C"]
+
+    no_pins = snapshot({"b/fp8": endpoint("b/fp8", "Beta"), "a/fp8": endpoint("a/fp8", "Alpha")})
+    decision = decide(no_pins, {"quantizations": ["fp8"], "min_eligible": 2}, source_label="x")
+    assert decision.status == "ok"
+    assert decision.providers == ["Alpha", "Beta"]
+    assert decision.route == ["b/fp8", "a/fp8"]
+    assert decision.eligible_endpoints == 2
+
+
+def test_decide_matches_provider_name_full_tag_and_base_slug():
+    snap = snapshot({
+        "base/fp8": endpoint("base/fp8", "Case Provider", "fp8"),
+        "base/fp4": endpoint("base/fp4", "Case Provider", "fp4"),
+        "other/fp8": endpoint("other/fp8", "Other", "fp8"),
+    })
+    profile = {"quantizations": ["fp8"], "pinned": ["case provider", "other/fp8", "base"], "min_eligible": 1}
+    decision = decide(snap, profile, source_label="live")
+    assert decision.status == "ok"
+    assert decision.providers == ["Case Provider", "Other"]
+    assert decision.route == ["base/fp8", "other/fp8"]
+    assert all("/" in tag for tag in decision.route)
+
+
+def test_decide_reason_precedence_and_json_shape():
+    snap = snapshot({
+        "q/fp4": endpoint("q/fp4", "Quant", "fp4"),
+        "m/fp8": endpoint("m/fp8", "Missing", "fp8", params=["a", "b"]),
+        "m/fp8/us": endpoint("m/fp8/us", "Missing", "fp8", params=["b"]),
+        "h/fp8": endpoint("h/fp8", "Unhealthy", "fp8", status=-2, params=["a", "b", "c"]),
+    })
+    profile = {"quantizations": ["fp8"], "required_parameters": ["a", "b", "c"],
+               "pinned": ["Absent", "Quant", "Missing", "Unhealthy"], "min_eligible": 1}
+    decision = decide(snap, profile, source_label="2026-10-15")
+    assert decision.dropped == [
+        {"provider": "Absent", "reason": "not listed"},
+        {"provider": "Quant", "reason": "quantization fp4 not in fp8"},
+        {"provider": "Missing", "reason": "missing c"},
+        {"provider": "Unhealthy", "reason": "unhealthy (status -2)"},
+    ]
+    payload = decision.to_dict()
+    assert payload["source"] == "2026-10-15"
+    assert payload["dropped"] == decision.dropped
+    assert CHANGE_CLASSES[-2:] == ("pinned_dropped", "pinned_restored")
+
+
+def test_example_routing_decisions_for_october_7_and_8():
+    config = load_config("examples/watch.toml")
+    profile = config["profiles"]["production"]
+    base = "examples/snapshots/z-ai__glm-5.3-flash"
+    october_7 = read_snapshot(f"{base}/2026-10-07.json")
+    decision = decide(october_7, profile, source_label="2026-10-07")
+    assert decision.status == "degraded"
+    assert decision.providers == ["Parasail", "NextBit"]
+    assert decision.route == ["parasail/fp8", "nextbit/fp8"]
+    assert {item["provider"]: item["reason"] for item in decision.dropped} == {
+        "Reka": "quantization unknown not in fp8",
+        "Inceptron": "missing seed",
+    }
+
+    october_8 = read_snapshot(f"{base}/2026-10-08.json")
+    decision = decide(october_8, profile, source_label="2026-10-08")
+    assert decision.status == "blocked"
+    assert decision.providers == ["Near AI"]
+    assert decision.route == ["near-ai/fp8"]
+    assert decision.backup_used == ["Near AI"]
+    assert {item["provider"]: item["reason"] for item in decision.dropped} == {
+        "Reka": "quantization unknown not in fp8",
+        "Parasail": "quantization fp4 not in fp8",
+        "NextBit": "not listed",
+        "Inceptron": "missing seed",
+    }
+
+
+def test_python_api_fetch_cache_and_blocked_exception(tmp_path):
+    from orwatch import _CHECK_CACHE
+
+    _CHECK_CACHE.clear()
+    profile = {"quantizations": ["fp8"], "pinned": ["A"], "min_eligible": 1}
+    calls = []
+
+    def fake_fetch(model):
+        calls.append(model)
+        return {"data": {"endpoints": [endpoint("a/fp8", "A")]}}
+
+    first = check(MODEL, profile, config=None, fetch=fake_fetch, max_age=60)
+    first.route.clear()
+    second = check(MODEL, profile, config=None, fetch=fake_fetch, max_age=60)
+    assert calls == [MODEL]
+    assert second.route == ["a/fp8"]
+
+    check(MODEL, profile, config=None, fetch=fake_fetch, max_age=0)
+    check(MODEL, profile, config=None, fetch=fake_fetch, max_age=0)
+    assert calls == [MODEL, MODEL, MODEL]
+
+    with pytest.raises(ProviderSetBlocked) as caught:
+        check(MODEL, {"quantizations": ["fp8"], "pinned": ["Missing"], "min_eligible": 1},
+              config=None, fetch=lambda model: {"data": {"endpoints": []}}, max_age=0,
+              raise_on_blocked=True)
+    assert caught.value.decision.status == "blocked"
+
+
+def test_python_api_defaults_to_first_configured_model_offline(tmp_path):
+    from orwatch.core import write_snapshot
+
+    snapshot_dir = tmp_path / "snapshots"
+    write_snapshot(snapshot_dir, snapshot({"a/fp8": endpoint("a/fp8", "A")}), "2026-10-15")
+    config = tmp_path / "watch.toml"
+    config.write_text(
+        f'[watch]\nmodels=["{MODEL}","other/model"]\nsnapshot_dir="{snapshot_dir}"\n'
+        '[profiles.production]\nquantizations=["fp8"]\npinned=["A"]\nmin_eligible=1\n',
+        encoding="utf-8",
+    )
+    decision = check(profile="production", config=config, offline=True, max_age=0)
+    assert decision.model_id == MODEL
+    assert decision.source == "2026-10-15"
+
+
+def test_check_cli_text_json_strict_record_and_exit_codes(tmp_path, capsys):
+    snapdir = tmp_path / "snaps"
+    folder = snapdir / "a__b"
+    folder.mkdir(parents=True)
+    (folder / "2026-10-15.json").write_text(json.dumps(snapshot({
+        "a/fp8": endpoint("a/fp8", "A"),
+        "b/fp4": endpoint("b/fp4", "B", quant="fp4"),
+    })), encoding="utf-8")
+    config = tmp_path / "watch.toml"
+    config.write_text(
+        f'[watch]\nmodels=["a/b"]\nsnapshot_dir="{snapdir}"\n'
+        '[profiles.p]\nquantizations=["fp8"]\npinned=["A","B"]\nmin_eligible=1\n',
+        encoding="utf-8",
+    )
+    record = tmp_path / "runs.jsonl"
+
+    assert main(["check", "--config", str(config), "--profile", "p", "--offline"]) == 0
+    text = capsys.readouterr()
+    assert "a/b: DEGRADED" in text.out
+    assert "pinned  B  dropped  quantization fp4 not in fp8" in text.out
+    assert "warning: a/b is degraded" in text.err
+
+    assert main(["check", "--config", str(config), "--profile", "p", "--offline", "--strict", "--format", "json", "--record", str(record)]) == 3
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert len(payload) == 1 and payload[0]["status"] == "degraded"
+    assert payload[0]["quantizations"] == ["fp8"]
+    assert len(record.read_text(encoding="utf-8").splitlines()) == 1
+
+    blocked_profile = tmp_path / "blocked.toml"
+    blocked_profile.write_text(
+        f'[watch]\nmodels=["a/b"]\nsnapshot_dir="{snapdir}"\n'
+        '[profiles.p]\nquantizations=["fp8"]\npinned=["B"]\nmin_eligible=1\n',
+        encoding="utf-8",
+    )
+    assert main(["check", "--config", str(blocked_profile), "--profile", "p", "--offline"]) == 7
+    assert "BLOCKED" in capsys.readouterr().out
+
+
+def test_adhoc_check_pinned_and_backup_flags(monkeypatch, capsys):
+    monkeypatch.setattr(
+        "orwatch.cli.fetch_endpoints",
+        lambda model: {"data": {"endpoints": [
+            endpoint("a/fp8", "A"),
+            endpoint("b/fp4", "B", quant="fp4"),
+            endpoint("c/fp8", "C"),
+        ]}},
+    )
+    result = main([
+        "check", "--model", MODEL, "--quant", "fp8", "--min", "2",
+        "--pinned", "A,B", "--backup", "C",
+    ])
+    output = capsys.readouterr()
+    assert result == 0
+    assert "DEGRADED" in output.out
+    assert "backup: C; B dropped" in output.out
+    assert "warning:" in output.err
+
+
+def test_pinned_diff_classes_and_preferred_alias(tmp_path):
+    before = snapshot({"p/fp8": endpoint("p/fp8", "P")})
+    after = snapshot({"p/fp4": endpoint("p/fp4", "P", quant="fp4")})
+    profile = {"quantizations": ["fp8"], "pinned": ["P"], "backup": ["B"]}
+    dropped = diff_snapshots(before, after, {"production": profile})
+    item = next(change for change in dropped if change["class"] == "pinned_dropped")
+    assert item["provider"] == "P" and item["reason"] == "quantization fp4 not in fp8"
+    from orwatch.cli import _render_markdown
+
+    markdown = _render_markdown(MODEL, "2026-10-14", "2026-10-15", dropped)
+    assert f"- pinned_dropped  production: P (quantization fp4 not in fp8)" in markdown
+    restored = diff_snapshots(after, before, {"production": profile})
+    assert any(change["class"] == "pinned_restored" and change["provider"] == "P" for change in restored)
+
+    config = tmp_path / "alias.toml"
+    config.write_text(
+        '[watch]\nmodels=["a/b"]\nsnapshot_dir="snaps"\n'
+        '[profiles.p]\nquantizations=["fp8"]\npreferred_providers=["P"]\n',
+        encoding="utf-8",
+    )
+    assert load_config(config)["profiles"]["p"]["pinned"] == ["P"]
+
+
+@pytest.mark.parametrize("entry", [
+    'pinned = "P"',
+    'backup = [1]',
+    'min_eligible = true',
+])
+def test_config_validates_routing_profile_types(tmp_path, entry):
+    config = tmp_path / "bad-routing.toml"
+    config.write_text(
+        f'[watch]\nmodels=["a/b"]\nsnapshot_dir="snaps"\n'
+        f'[profiles.p]\nquantizations=["fp8"]\n{entry}\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError):
+        load_config(config)
