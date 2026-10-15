@@ -25,8 +25,8 @@ history and no change feed. This tool is that history and that feed.
 
 A small CLI + library that
 
-1. snapshots OpenRouter per-model endpoint metadata (daily, via GitHub
-   Actions or cron),
+1. checks OpenRouter per-model endpoint metadata hourly and saves snapshots
+   only when diffable metadata changes (via GitHub Actions or cron),
 2. diffs consecutive snapshots into named change classes,
 3. evaluates user-defined **requirement profiles** so the report says, in one
    line, "your production profile went from 3 eligible endpoints to 1 — below
@@ -69,9 +69,12 @@ Observed facts that shape the design:
 
 ## Normalized snapshot
 
-Path: `<snapshot_dir>/<model-slug>/<YYYY-MM-DD>.json`, where `model-slug` is
-the model id with `/` replaced by `__` (`z-ai__glm-5.3-flash`). Same date
-overwrites (idempotent).
+Path: `<snapshot_dir>/<model-slug>/<YYYY-MM-DDTHHMMZ>.json`, where
+`model-slug` is the model id with `/` replaced by `__`
+(`z-ai__glm-5.3-flash`). Legacy `<YYYY-MM-DD>.json` snapshots remain valid and
+are ordered before timestamped snapshots on the same day. A snapshot is saved
+only when the diff engine reports a change; `--always` forces a write and
+`--date` writes the legacy date format.
 
 ```json
 {
@@ -122,16 +125,24 @@ An endpoint is **eligible** for a profile iff its `quantization` is in
 
 ## Commands (`orwatch`, argparse, no third-party deps)
 
-### `orwatch snapshot [--config watch.toml] [--date YYYY-MM-DD]`
+### `orwatch snapshot [--config watch.toml] [--at YYYY-MM-DDTHHMMZ | --date YYYY-MM-DD] [--always]`
 
-Fetch every configured model and write snapshots. One summary line per
-model (`z-ai/glm-5.3-flash: 33 endpoints → snapshots/z-ai__glm-5.3-flash/2026-10-15.json`).
+Fetch every configured model and compare it with the latest stored snapshot.
+Write a timestamped snapshot only when there is no previous snapshot or the
+diff engine reports changes. Unchanged models print
+`<model>: no change since <label>`; changed models print the change count and
+path. `uptime_last_1d` alone does not trigger a write. `--always` forces a
+write; `--at` sets the minute-precision UTC timestamp; `--date` writes a
+legacy date-named file. When `GITHUB_OUTPUT` is set, append `changed=true` if
+any model wrote a file, otherwise append `changed=false`.
 A network or parse failure for one model is reported and the others continue;
 exit 1 at the end if any model failed, else 0.
 
-### `orwatch diff [--config] [--model ID] [--from DATE] [--to DATE] [--format md|json] [--fail-on CLASS[,CLASS...]]`
+### `orwatch diff [--config] [--model ID] [--from STEM|DATE] [--to STEM|DATE] [--format md|json] [--fail-on CLASS[,CLASS...]]`
 
-Default compares the two most recent snapshots per model. Change classes:
+Default compares the two most recent snapshots per model. A date selector
+chooses the last snapshot on that day; a full timestamp stem selects that
+snapshot. Change classes:
 
 | class | meaning |
 | --- | --- |
@@ -204,14 +215,14 @@ for models with one snapshot, no changes, or no snapshots.
 
 ## GitHub Actions
 
-`.github/workflows/daily.yml`: cron `0 3 * * *` plus `workflow_dispatch`;
-Python 3.11; steps: install the package, `orwatch snapshot`,
-`orwatch history --out HISTORY.md`, commit `snapshots/` and `HISTORY.md` when
-changed (bot identity), then run
-`orwatch diff --format md --fail-on quantization_changed,endpoint_removed,endpoint_replaced,profile_eligible_changed`
-and, on exit 2, open a GitHub issue whose body is the markdown diff (use
-`gh issue create` with `GITHUB_TOKEN`; the issue step must not fail the
-workflow when an issue cannot be created). Keep it simple and readable.
+Amendment 2026-10-15 (hourly, save on change):
+`.github/workflows/watch.yml` runs at cron `17 * * * *` plus
+`workflow_dispatch`. It polls hourly, then regenerates history and figures,
+commits, checks for breaking changes, and opens an issue only when the poll
+writes a changed snapshot. An unchanged poll adds a UTC status line to the
+workflow summary.
+Python 3.11; permissions remain `contents: write` and `issues: write`; issue
+creation uses `GITHUB_TOKEN` and does not fail the workflow when unavailable.
 
 ## Packaging and conventions
 

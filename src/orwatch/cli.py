@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
 from urllib.request import urlopen
 
 from .config import ConfigError, load_config
-from .core import diff_snapshots, eligible_endpoints, list_snapshots, normalize_response, read_snapshot, utc_now, write_snapshot
+from .core import diff_snapshots, eligible_endpoints, list_snapshots, normalize_response, read_snapshot, snapshot_label, utc_now, write_snapshot
 
 
 def fetch_endpoints(model_id: str) -> dict[str, Any]:
@@ -33,6 +34,20 @@ def _date(value: str | None) -> str | None:
         return date.fromisoformat(value).isoformat()
     except ValueError as exc:
         raise ValueError(f"invalid date: {value}") from exc
+
+
+def _snapshot_selector(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if len(value) == 10:
+        return _date(value)
+    try:
+        normalized = datetime.strptime(value, "%Y-%m-%dT%H%MZ").strftime("%Y-%m-%dT%H%MZ")
+        if normalized == value:
+            return normalized
+        raise ValueError
+    except ValueError as exc:
+        raise ValueError(f"invalid snapshot selector: {value}") from exc
 
 
 def _load_optional_config(path: str) -> dict[str, Any] | None:
@@ -60,7 +75,7 @@ def _profiles(config: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
 
 
 def _render_markdown(model_id: str, from_day: str, to_day: str, changes: list[dict[str, Any]], snapshots: tuple[dict[str, Any], dict[str, Any]] | None = None) -> str:
-    lines = [f"## {model_id} — {from_day} → {to_day}", ""]
+    lines = [f"## {model_id} — {snapshot_label(from_day)} → {snapshot_label(to_day)}", ""]
     for item in changes:
         kind = item["class"]
         if kind == "endpoint_replaced":
@@ -102,23 +117,58 @@ def _changes_for_pair(model: str, from_path: Path, to_path: Path, profiles: dict
 
 def cmd_snapshot(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    day = _date(args.date) or date.today().isoformat()
+    if args.date and args.at:
+        raise ValueError("--date and --at cannot be used together")
+    legacy_date = _date(args.date)
+    if args.at:
+        try:
+            stamp = datetime.strptime(args.at, "%Y-%m-%dT%H%MZ").strftime("%Y-%m-%dT%H%MZ")
+            if stamp != args.at:
+                raise ValueError
+        except ValueError as exc:
+            raise ValueError(f"invalid timestamp: {args.at}; expected YYYY-MM-DDTHHMMZ") from exc
+    else:
+        stamp = legacy_date or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H%MZ")
     failures = 0
+    changed = False
     for model in config["watch"]["models"]:
         try:
             response = fetch_endpoints(model)
             snapshot = normalize_response(model, response, utc_now())
-            path = write_snapshot(config["watch"]["snapshot_dir"], snapshot, day)
-            print(f"{model}: {len(snapshot['endpoints'])} endpoints → {path}")
+            paths = list_snapshots(config["watch"]["snapshot_dir"], model)
+            previous = read_snapshot(paths[-1]) if paths else None
+            changes = diff_snapshots(previous, snapshot) if previous is not None else []
+            if previous is not None and not changes and not args.always:
+                print(f"{model}: no change since {snapshot_label(paths[-1].stem)}")
+                continue
+            path = write_snapshot(config["watch"]["snapshot_dir"], snapshot, stamp)
+            changed = True
+            if previous is None:
+                print(f"{model}: first snapshot → {path}")
+            else:
+                print(f"{model}: {len(changes)} change(s) → {path}")
         except Exception as exc:
             failures += 1
             print(f"{model}: snapshot failed: {exc}", file=sys.stderr)
+    output_path = os.environ.get("GITHUB_OUTPUT")
+    if output_path:
+        with Path(output_path).open("a", encoding="utf-8") as output:
+            output.write(f"changed={'true' if changed else 'false'}\n")
     return 1 if failures else 0
 
 
+def _select_snapshot(paths: list[Path], selector: str) -> Path | None:
+    if len(selector) == 10:
+        day = _date(selector)
+        if day:
+            matching = [path for path in paths if path.stem.startswith(f"{day}T")]
+            return matching[-1] if matching else next((p for p in paths if p.stem == day), None)
+    return next((path for path in paths if path.stem == selector), None)
+
+
 def cmd_diff(args: argparse.Namespace) -> int:
-    args.from_date = _date(args.from_date)
-    args.to_date = _date(args.to_date)
+    args.from_date = _snapshot_selector(args.from_date)
+    args.to_date = _snapshot_selector(args.to_date)
     config = _load_optional_config(args.config)
     models = _models(config, args.model)
     profiles = _profiles(config)
@@ -131,15 +181,15 @@ def cmd_diff(args: argparse.Namespace) -> int:
         if args.from_date or args.to_date:
             if not args.from_date or not args.to_date:
                 raise ValueError("--from and --to must be supplied together")
-            first = next((p for p in paths if p.stem == args.from_date), None)
-            second = next((p for p in paths if p.stem == args.to_date), None)
+            first = _select_snapshot(paths, args.from_date)
+            second = _select_snapshot(paths, args.to_date)
             if first is None or second is None:
                 raise ValueError(f"snapshot not found for {model} and requested dates")
         else:
             if not paths:
                 raise ValueError(f"no snapshots for {model}")
             if len(paths) == 1:
-                print(f"{model}: only one snapshot ({paths[0].stem}); nothing to compare")
+                print(f"{model}: only one snapshot ({snapshot_label(paths[0].stem)}); nothing to compare")
                 continue
             first, second = paths[-2:]
         before, after, changes = _changes_for_pair(model, first, second, profiles)
@@ -187,10 +237,13 @@ def cmd_check(args: argparse.Namespace) -> int:
             if not paths:
                 raise ValueError(f"no snapshots for {model}")
             snapshot = read_snapshot(paths[-1])
+            snapshot_stamp = snapshot_label(paths[-1].stem)
         else:
             snapshot = normalize_response(model, fetch_endpoints(model), utc_now())
+            snapshot_stamp = None
         eligible = eligible_endpoints(snapshot, profile)
-        print(f"{model}: {len(eligible)} eligible endpoint(s) (minimum {profile.get('min_eligible', 1)})")
+        suffix = f" (snapshot {snapshot_stamp})" if snapshot_stamp else ""
+        print(f"{model}: {len(eligible)} eligible endpoint(s) (minimum {profile.get('min_eligible', 1)}){suffix}")
         print("provider\ttag\tquantization\tstatus\tprompt\tcompletion")
         for tag, ep in sorted(eligible.items()):
             pricing = ep.get("pricing", {})
@@ -230,7 +283,7 @@ def cmd_history(args: argparse.Namespace) -> int:
             chunks.extend(["No snapshots yet.", ""])
             continue
         chunks.extend([
-            f"Tracking since {paths[0].stem} · {len(paths)} snapshot{'s' if len(paths) != 1 else ''} · latest {paths[-1].stem}",
+            f"Tracking since {snapshot_label(paths[0].stem)} · {len(paths)} change snapshot{'s' if len(paths) != 1 else ''} · latest {snapshot_label(paths[-1].stem)}",
             "",
         ])
         pairs = []
@@ -239,7 +292,7 @@ def cmd_history(args: argparse.Namespace) -> int:
             if changes:
                 rendered = _render_markdown(model, left.stem, right.stem, changes, (before, after))
                 body = rendered.split("\n", 1)[1]
-                pairs.append(f"### {left.stem} → {right.stem}\n{body}")
+                pairs.append(f"### {snapshot_label(left.stem)} → {snapshot_label(right.stem)}\n{body}")
         if pairs:
             chunks.extend(["\n".join(reversed(pairs)), ""])
         else:
@@ -258,6 +311,8 @@ def build_parser() -> argparse.ArgumentParser:
     snapshot = sub.add_parser("snapshot")
     snapshot.add_argument("--config", default="watch.toml")
     snapshot.add_argument("--date")
+    snapshot.add_argument("--at")
+    snapshot.add_argument("--always", action="store_true")
     snapshot.set_defaults(func=cmd_snapshot)
     diff = sub.add_parser("diff")
     diff.add_argument("--config", default="watch.toml")

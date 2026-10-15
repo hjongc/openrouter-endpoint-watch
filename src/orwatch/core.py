@@ -15,6 +15,18 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def snapshot_label(stem: str) -> str:
+    """Return the display label for a legacy date or minute-precision UTC stem."""
+    if len(stem) == 16 and stem[10] == "T" and stem.endswith("Z"):
+        try:
+            parsed = datetime.strptime(stem, "%Y-%m-%dT%H%MZ")
+        except ValueError:
+            pass
+        else:
+            return parsed.strftime("%Y-%m-%d %H:%M UTC")
+    return stem
+
+
 def normalize_response(
     model_id: str,
     response: dict[str, Any],
