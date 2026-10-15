@@ -4,8 +4,8 @@
 
 **Your LLM provider changed under you. Find out before your pipeline does.**
 
-Hourly checks, change-only snapshots, and pre-run gates for OpenRouter endpoint
-metadata: quantization flips, vanished providers, and dropped parameters.
+Hourly checks, change-only snapshots, and routing decisions for OpenRouter
+endpoint metadata: quantization flips, vanished providers, and dropped parameters.
 
 [![endpoint watch](https://github.com/hjongc/openrouter-endpoint-watch/actions/workflows/watch.yml/badge.svg)](https://github.com/hjongc/openrouter-endpoint-watch/actions/workflows/watch.yml)
 ![python](https://img.shields.io/badge/python-3.11%2B-2a78d6)
@@ -18,18 +18,19 @@ metadata: quantization flips, vanished providers, and dropped parameters.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture-dark.svg">
-  <img alt="orwatch pipeline: OpenRouter's public endpoint list is checked hourly by GitHub Actions and saved only when it changes, diffed into named change classes, and checked against your profile; results go to HISTORY.md, a GitHub issue on breaking changes, and exit code 7 as a pre-run gate." src="docs/assets/architecture-light.svg" width="880">
+  <img alt="orwatch pipeline: OpenRouter's public endpoint list is checked hourly by GitHub Actions and saved only when it changes, diffed into named change classes, and checked against your profile; results go to HISTORY.md, a GitHub issue on breaking changes, and a routing decision: ok, degraded, or blocked." src="docs/assets/architecture-light.svg" width="880">
 </picture>
 
 orwatch watches the public endpoint list of the OpenRouter models you depend on.
 Every hour it checks; when something changes, it saves a snapshot and tells you,
 by name, what changed: an fp8 endpoint that became fp4, a provider that
-disappeared, a parameter that stopped being supported. Then it checks what is left against what your pipeline
-actually needs, and fails fast, before you spend a single token.
+disappeared, a parameter that stopped being supported. Before a run, it tells your pipeline which endpoints to use right now: all of
+your pinned providers, the ones still standing, a backup you approved in
+advance, or none, in which case it stops before you spend a single token.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/demo-dark.svg">
-  <img alt="Terminal: orwatch diff reports Parasail fp8 replaced by fp4, NextBit removed, and the production profile falling from 3 eligible endpoints to 1; orwatch check exits 7." src="docs/assets/demo-light.svg" width="880">
+  <img alt="Terminal: orwatch diff reports Parasail fp8 replaced by fp4, NextBit removed, and the production profile falling from 3 eligible endpoints to 1; orwatch check lists each pinned and backup provider with the reason it dropped, and blocks with exit 7." src="docs/assets/demo-light.svg" width="880">
 </picture>
 
 ## What diff sees
@@ -75,6 +76,8 @@ model more than once.
 | `quantization_changed` | The quantization of an endpoint changed | ● |
 | `endpoint_removed` | An endpoint is no longer listed | ● |
 | `profile_eligible_changed` | The set of endpoints that meet a profile changed; flagged when it falls below `min_eligible` | ● |
+| `pinned_dropped` | A provider you pinned is no longer usable, with the reason (`quantization unknown not in fp8`, `not listed`, `missing seed`, …) | ● |
+| `pinned_restored` | A pinned provider became usable again | |
 | `endpoint_added` | A new endpoint is listed | |
 | `status_changed` | An endpoint turned healthy or unhealthy | |
 | `parameter_added` / `parameter_removed` | Support for a parameter such as `seed` or `tools` changed | |
@@ -85,10 +88,21 @@ OpenRouter tags embed the quantization, so a flip looks like one endpoint
 leaving and another arriving. orwatch pairs them back into a single
 `endpoint_replaced` so you read one change, not two.
 
-**Profile check.** A profile encodes what your pipeline needs. An endpoint is
-eligible only if its quantization is listed, every required parameter is
-supported, and its status is healthy. `unknown` never matches unless you list
-it. `orwatch check` exits 7 when fewer than `min_eligible` endpoints remain.
+**Routing decision.** A profile encodes what your pipeline needs. An endpoint
+is eligible only if its quantization is listed, every required parameter is
+supported, and its status is healthy; `unknown` never matches unless you list
+it. If you pin providers, `orwatch check` turns that into one of three
+decisions instead of a blunt pass or fail:
+
+| Decision | When | What your run gets | Exit code |
+|---|---|---|:---:|
+| **ok** | Every pinned provider is usable | The pinned providers, in your order | 0 |
+| **degraded** | Some pinned providers dropped, but at least `min_eligible` remain, possibly with backups you approved | The providers still standing, plus a warning that names what dropped and why | 0 (3 with `--strict`) |
+| **blocked** | Fewer than `min_eligible` usable even with backups | Nothing: stop before spending tokens | 7 |
+
+The decision lists exact endpoint slugs such as `parasail/fp8`, not just
+`parasail`. That matters: in OpenRouter's `provider.order`, a bare provider
+slug matches every endpoint of that provider, including its fp4 one.
 
 ## Quickstart
 
@@ -109,13 +123,41 @@ orwatch check --profile production
 Python 3.11+, standard library only, no API key: the endpoint metadata is
 public.
 
-## Use it as a pre-run gate
+## Use it before every run
 
-Put the check in front of anything expensive. It exits 7 when a profile has
-fewer eligible endpoints than you require, before a single token is spent:
+In Python, ask for a decision and pass it straight to OpenRouter's provider
+routing. A metadata check takes about 0.3 seconds and the result is cached for
+five minutes, so it is cheap enough to sit in front of every request:
+
+```python
+import orwatch
+from openai import OpenAI
+
+decision = orwatch.check("z-ai/glm-5.3-flash", profile="production")
+if decision.status == "blocked":
+    raise SystemExit(f"not running: {decision.dropped}")
+if decision.status == "degraded":
+    print("warning:", decision.dropped)          # e.g. Reka: quantization unknown not in fp8
+
+client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key="...")
+response = client.chat.completions.create(
+    model="z-ai/glm-5.3-flash",
+    messages=[{"role": "user", "content": "..."}],
+    seed=42,
+    extra_body={"provider": decision.provider_preferences()},
+    # {"order": ["parasail/fp8", "nextbit/fp8"], "allow_fallbacks": false,
+    #  "require_parameters": true, "quantizations": ["fp8"]}
+)
+```
+
+From the shell, a degraded decision prints a warning and still exits 0, so a
+script continues on the providers that are left; only a blocked decision stops
+it. Use `--format json` to feed the decision to another tool, `--strict` to
+treat degraded as a failure, and `--record runs.jsonl` to keep, next to your
+results, which providers each run actually used:
 
 ```bash
-orwatch check --profile production || { echo "provider set changed, not running"; exit 1; }
+orwatch check --profile production --record runs.jsonl || exit 1
 python run_my_batch.py
 ```
 
@@ -123,7 +165,8 @@ No profile in a config file? The ad-hoc form works too:
 
 ```bash
 orwatch check --model z-ai/glm-5.3-flash --quant fp8 \
-  --require seed,response_format,tools,tool_choice --min 2
+  --require seed,response_format,tools,tool_choice \
+  --pinned "Near AI,Inceptron" --min 1
 ```
 
 ## Configuration
@@ -138,12 +181,16 @@ snapshot_dir = "snapshots"
 [profiles.production]
 quantizations = ["fp8"]
 required_parameters = ["seed", "response_format", "tools", "tool_choice"]
-min_eligible = 2
-preferred_providers = ["Near AI", "Inceptron"]   # optional, reported in order
-healthy_only = true                               # default
+pinned = ["Reka", "Parasail", "NextBit"]   # the providers you benchmarked, in order
+backup = ["Near AI", "Inceptron"]          # approved substitutes, used only if needed
+min_eligible = 2                           # usable providers needed to run
+healthy_only = true                        # default
 ```
 
-Profiles are evaluated per model. Add as many as your pipelines need.
+Providers can be named by display name (`Near AI`), base slug (`near-ai`), or
+exact endpoint slug (`near-ai/fp8`). Without `pinned`, `min_eligible` counts
+eligible endpoints instead and the decision is simply ok or blocked. Profiles
+are evaluated per model; add as many as your pipelines need.
 
 ## Commands and exit codes
 
@@ -151,7 +198,7 @@ Profiles are evaluated per model. Add as many as your pipelines need.
 |---|---|---|
 | `orwatch snapshot [--always] [--at T]` | Fetch every configured model; write `snapshots/<model>/<UTC timestamp>.json` only if something changed | 0 ok, 1 if any model failed |
 | `orwatch diff [--from S --to S] [--format md\|json] [--fail-on CLASSES]` | Compare the two latest snapshots, or two given ones (a timestamp, or a date for that day's last snapshot) | 0 ok, **2** when a `--fail-on` class appears, 1 on error or no snapshots |
-| `orwatch check --profile NAME [--offline]` | Evaluate a profile on live metadata or the latest snapshot | 0 ok, **7** below `min_eligible`, 1 on error |
+| `orwatch check --profile NAME [--offline] [--format json] [--strict] [--record FILE]` | Decide which pinned or backup providers to use, on live metadata or the latest snapshot | 0 ok or degraded, 3 degraded with `--strict`, **7** blocked, 1 on error |
 | `orwatch history [--out FILE]` | Markdown history per model: tracking period and every recorded change, newest first | 0 ok, 1 on error |
 
 All commands take `--config` (default `watch.toml`) and most take `--model ID`.
@@ -166,6 +213,19 @@ minute 17) it checks every configured model. Only when something changed does
 it save a snapshot, refresh [`HISTORY.md`](HISTORY.md) and the figures, commit,
 and open an issue for the marked change classes above. A quiet hour leaves a
 one-line note in the run summary and nothing in the repository.
+
+**Changing how often it checks.** The interval lives in one line of
+`watch.yml`, because GitHub reads schedules from the workflow file:
+
+```yaml
+on:
+  schedule:
+    - cron: "17 * * * *"      # hourly; "*/15 * * * *" for every 15 minutes
+```
+
+GitHub runs schedules at most every 5 minutes and may delay runs near the top
+of the hour. Outside GitHub, any scheduler works, for example a crontab line:
+`*/15 * * * * cd /path/to/repo && orwatch snapshot`.
 
 To watch your own models, fork the repository, edit `watch.toml`, and enable
 Actions. The workflow only needs the default `GITHUB_TOKEN` with contents and
@@ -218,9 +278,10 @@ has no history and no change feed. orwatch is that history and that feed.
 The filter is what dropped my fastest provider without a word. A filter decides
 per request; it cannot tell you that the set it filters from changed yesterday.
 
-**Why not turn fallbacks on?** Then a run can silently switch to a provider
-with different weights or parameter support halfway through. For anything you
-compare across runs, that is worse than stopping.
+**Why not turn OpenRouter's fallbacks on?** Then a run can silently switch to
+a provider with different weights or parameter support halfway through. orwatch
+gives you a controlled version instead: substitutes you approved in advance,
+chosen before the run starts, and recorded with `--record`.
 
 **Why poll instead of listening for a webhook?** OpenRouter publishes no
 webhook or change feed for endpoint metadata, and the endpoints API sends no
