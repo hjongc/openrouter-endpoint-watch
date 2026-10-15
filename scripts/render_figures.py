@@ -13,8 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from orwatch.config import load_config  # noqa: E402
-from orwatch.core import (  # noqa: E402
+from oewatch.config import load_config  # noqa: E402
+from oewatch.core import (  # noqa: E402
     CHANGE_CLASSES,
     diff_snapshots,
     eligible_endpoints,
@@ -149,7 +149,7 @@ def latest_snapshot(config: dict) -> dict:
 
 def architecture(mode: str, count: int, eligible_count: int) -> str:
     p = PALETTES[mode]
-    title = "orwatch: know when your provider set changes"
+    title = "openrouter-endpoint-watch: know when your provider set changes"
     parts = svg_start("architecture", mode, 262, title,
                       "OpenRouter endpoint metadata is snapshotted, diffed, checked against a profile, and sent to history, issues, and CI gates.", width=1200)
     parts.append(text(24, 35, title, fill=p["ink"], size=18, weight=600))
@@ -244,7 +244,7 @@ def board_data() -> tuple[list[dict], int, int, int, int]:
 def board(mode: str) -> str:
     p = PALETTES[mode]
     rows, eligible_old, eligible_new, minimum, other = board_data()
-    title = "What orwatch diff sees: one bad day, endpoint by endpoint"
+    title = "What oewatch diff sees: one bad day, endpoint by endpoint"
     subtitle = "z-ai/glm-5.3-flash · Oct 7 → Oct 8 · endpoints whose quantization matches the production profile (fp8)"
     height = 576
     parts = svg_start("board", mode, height, title,
@@ -326,7 +326,7 @@ def board(mode: str) -> str:
 def run_cli(command: list[str]) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT / "src")
-    return subprocess.run([sys.executable, "-m", "orwatch", *command], cwd=ROOT, env=env,
+    return subprocess.run([sys.executable, "-m", "oewatch", *command], cwd=ROOT, env=env,
                           text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
 
 
@@ -339,7 +339,7 @@ def demo(mode: str) -> str:
     diff_lines = diff.stdout.rstrip("\n").splitlines()
     check_lines = check.stdout.rstrip("\n").splitlines()
     rows: list[tuple[str, str]] = []
-    rows.append(("command", "$ orwatch diff --config examples/watch.toml"))
+    rows.append(("command", "$ oewatch diff --config examples/watch.toml"))
     for index, line in enumerate(diff_lines):
         line = line.replace("**", "")
         if index == 0 and line.startswith("## "):
@@ -347,10 +347,10 @@ def demo(mode: str) -> str:
         else:
             rows.append(("output", line))
     rows.append(("blank", ""))
-    rows.append(("command", "$ orwatch check --config examples/watch.toml --profile production --offline"))
+    rows.append(("command", "$ oewatch check --config examples/watch.toml --profile production --offline"))
     rows.extend(("output", line) for line in check_lines)
     rows.append(("critical", f"exit {check.returncode}"))
-    title = "orwatch demo terminal"
+    title = "oewatch demo terminal"
     content: list[str] = []
     y = 78
     for kind, line in rows:
@@ -402,7 +402,7 @@ def demo(mode: str) -> str:
     parts.append(f'<path d="M 24 34 Q 24 24 34 24 H 846 Q 856 24 856 34 V 52 H 24 Z" fill="{p["surface"]}"/>')
     for cx in (43, 63, 83):
         parts.append(f'<circle cx="{cx}" cy="38" r="5" fill="{p["muted"]}" fill-opacity="0.35"/>')
-    parts.append(text(440, 42, "orwatch — examples", fill=p["muted"], size=12, anchor="middle"))
+    parts.append(text(440, 42, "oewatch — examples", fill=p["muted"], size=12, anchor="middle"))
     parts.extend(content)
     return svg_finish(parts)
 

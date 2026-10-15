@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="880" height="500" viewBox="0 0 880 500" role="img" aria-labelledby="title desc">
-<title id="title">orwatch demo terminal</title>
+<title id="title">oewatch demo terminal</title>
 <desc id="desc">A terminal transcript shows an endpoint replacement, a profile falling below its minimum, and offline check exit code 7.</desc>
 <rect x="0.5" y="0.5" width="879" height="499" rx="12" fill="#1a1a19" stroke="#2c2c2a"/>
 <rect x="24" y="24" width="832" height="452" rx="10" fill="#1a1a19" stroke="#2c2c2a"/>
@@ -7,9 +7,9 @@
 <circle cx="43" cy="38" r="5" fill="#898781" fill-opacity="0.35"/>
 <circle cx="63" cy="38" r="5" fill="#898781" fill-opacity="0.35"/>
 <circle cx="83" cy="38" r="5" fill="#898781" fill-opacity="0.35"/>
-<text x="440" y="42" fill="#898781" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="middle" >orwatch — examples</text>
+<text x="440" y="42" fill="#898781" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="middle" >oewatch — examples</text>
 <text x="40" y="78" fill="#898781" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" >$</text>
-<text x="52" y="78" fill="#c3c2b7" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" >orwatch diff --config examples/watch.toml</text>
+<text x="52" y="78" fill="#c3c2b7" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" >oewatch diff --config examples/watch.toml</text>
 <text x="60" y="98" fill="#f0efec" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="600" text-anchor="start" xml:space="preserve">z-ai/glm-5.3-flash — 2026-10-07 → 2026-10-08</text>
 <text x="60" y="118" fill="#f0efec" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve"></text>
 <circle cx="48" cy="134" r="4" fill="#ec835a"/>
@@ -25,7 +25,7 @@
 <circle cx="48" cy="254" r="4" fill="#ec835a"/>
 <text x="60" y="258" fill="#f0efec" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">- pinned_dropped  production: NextBit (not listed)</text>
 <text x="40" y="288" fill="#898781" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" >$</text>
-<text x="52" y="288" fill="#c3c2b7" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" >orwatch check --config examples/watch.toml --profile production --offline</text>
+<text x="52" y="288" fill="#c3c2b7" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" >oewatch check --config examples/watch.toml --profile production --offline</text>
 <text x="60" y="308" fill="#f0efec" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">z-ai/glm-5.3-flash: BLOCKED · snapshot 2026-10-08</text>
 <circle cx="48" cy="324" r="4" fill="#ec835a"/>
 <text x="60" y="328" fill="#f0efec" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">  pinned  Reka       dropped  quantization unknown not in fp8</text>

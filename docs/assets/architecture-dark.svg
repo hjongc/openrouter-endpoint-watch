@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="262" viewBox="0 0 1200 262" role="img" aria-labelledby="title desc">
-<title id="title">orwatch: know when your provider set changes</title>
+<title id="title">openrouter-endpoint-watch: know when your provider set changes</title>
 <desc id="desc">OpenRouter endpoint metadata is snapshotted, diffed, checked against a profile, and sent to history, issues, and CI gates.</desc>
 <rect x="0.5" y="0.5" width="1199" height="261" rx="12" fill="#1a1a19" stroke="#2c2c2a"/>
-<text x="24" y="35" fill="#f0efec" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18px" font-weight="600" text-anchor="start" >orwatch: know when your provider set changes</text>
+<text x="24" y="35" fill="#f0efec" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18px" font-weight="600" text-anchor="start" >openrouter-endpoint-watch: know when your provider set changes</text>
 <rect x="24" y="106" width="207" height="82" rx="10" fill="#232322" stroke="#2c2c2a" stroke-width="1"/>
 <text x="40" y="135" fill="#f0efec" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14px" font-weight="600" text-anchor="start" >OpenRouter</text>
 <text x="40" y="154" fill="#c3c2b7" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >public endpoint list</text>

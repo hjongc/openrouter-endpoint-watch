@@ -1,4 +1,4 @@
-"""OpenRouter endpoint metadata history and checks."""
+"""openrouter-endpoint-watch (oewatch): OpenRouter endpoint metadata history, diffs, and routing decisions."""
 
 from __future__ import annotations
 

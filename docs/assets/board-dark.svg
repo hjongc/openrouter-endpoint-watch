@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="880" height="576" viewBox="0 0 880 576" role="img" aria-labelledby="title desc">
-<title id="title">What orwatch diff sees: one bad day, endpoint by endpoint</title>
+<title id="title">What oewatch diff sees: one bad day, endpoint by endpoint</title>
 <desc id="desc">An endpoint-by-endpoint board compares production-profile capabilities and eligibility across the October 7 and October 8 snapshots.</desc>
 <rect x="0.5" y="0.5" width="879" height="575" rx="12" fill="#1a1a19" stroke="#2c2c2a"/>
-<text x="24" y="34" fill="#f0efec" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18px" font-weight="600" text-anchor="start" >What orwatch diff sees: one bad day, endpoint by endpoint</text>
+<text x="24" y="34" fill="#f0efec" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18px" font-weight="600" text-anchor="start" >What oewatch diff sees: one bad day, endpoint by endpoint</text>
 <text x="24" y="58" fill="#c3c2b7" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13px" font-weight="400" text-anchor="start" >z-ai/glm-5.3-flash · Oct 7 → Oct 8 · endpoints whose quantization matches the production profile (fp8)</text>
 <text x="675" y="87" fill="#898781" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11px" font-weight="600" text-anchor="middle" >Eligible</text>
 <line x1="630" y1="93" x2="720" y2="93" stroke="#2c2c2a" stroke-width="1"/>

@@ -1,5 +1,7 @@
 # openrouter-endpoint-watch — spec v0.1 (2026-10-15)
 
+Renamed 2026-10-15: command and package orwatch → oewatch (name collision with an unrelated project).
+
 ## Why this exists
 
 Two incidents in a production LLM pipeline that routes through OpenRouter with
@@ -123,9 +125,9 @@ An endpoint is **eligible** for a profile iff its `quantization` is in
 `required_parameters ⊆ supported_parameters`, and (`healthy_only` is false or
 `status >= 0`). Profiles are evaluated per model.
 
-## Commands (`orwatch`, argparse, no third-party deps)
+## Commands (`oewatch`, argparse, no third-party deps)
 
-### `orwatch snapshot [--config watch.toml] [--at YYYY-MM-DDTHHMMZ | --date YYYY-MM-DD] [--always]`
+### `oewatch snapshot [--config watch.toml] [--at YYYY-MM-DDTHHMMZ | --date YYYY-MM-DD] [--always]`
 
 Fetch every configured model and compare it with the latest stored snapshot.
 Write a timestamped snapshot only when there is no previous snapshot or the
@@ -138,7 +140,7 @@ any model wrote a file, otherwise append `changed=false`.
 A network or parse failure for one model is reported and the others continue;
 exit 1 at the end if any model failed, else 0.
 
-### `orwatch diff [--config] [--model ID] [--from STEM|DATE] [--to STEM|DATE] [--format md|json] [--fail-on CLASS[,CLASS...]]`
+### `oewatch diff [--config] [--model ID] [--from STEM|DATE] [--to STEM|DATE] [--format md|json] [--fail-on CLASS[,CLASS...]]`
 
 Default compares the two most recent snapshots per model. A date selector
 chooses the last snapshot on that day; a full timestamp stem selects that
@@ -186,7 +188,7 @@ JSON format: a list of change objects with `model_id`, `from`, `to`,
 `class`, `tag`/`provider_name` where applicable, `before`, `after`, and
 nested `changes` for `endpoint_replaced`.
 
-### `orwatch check [--config] --profile NAME [--model ID] [--offline]`
+### `oewatch check [--config] --profile NAME [--model ID] [--offline]`
 
 Live fetch (or the latest snapshot with `--offline`), then print an eligible
 endpoint table per model (provider, tag, quantization, status, price) and,
@@ -196,9 +198,9 @@ otherwise exit **7** with a one-line reason
 (`production: 1 eligible endpoint for z-ai/glm-5.3-flash, min_eligible=2`).
 
 Ad-hoc form without a config file:
-`orwatch check --model z-ai/glm-5.3-flash --quant fp8 --require seed,response_format,tools,tool_choice --min 2`.
+`oewatch check --model z-ai/glm-5.3-flash --quant fp8 --require seed,response_format,tools,tool_choice --min 2`.
 
-### `orwatch history [--config] [--model ID] [--profile NAME] [--out FILE]`
+### `oewatch history [--config] [--model ID] [--profile NAME] [--out FILE]`
 
 Walk all snapshots for each model chronologically, run the diff engine on
 each consecutive pair, and emit a Markdown document with a top-level
@@ -253,7 +255,7 @@ closest allowed-quantization endpoint; unhealthy status.
 
 ### 3. Python API
 
-`orwatch.check(model_id=None, profile="production", *, config="watch.toml",
+`oewatch.check(model_id=None, profile="production", *, config="watch.toml",
 offline=False, max_age=300, raise_on_blocked=False, fetch=None)` returns a
 `Decision`. A profile name is read from the config; a profile dict can be used
 without a config when the model is supplied and the check is live. An omitted
@@ -264,7 +266,7 @@ profile contents, and offline mode for `max_age` seconds using a monotonic
 clock; zero disables the cache. `raise_on_blocked=True` raises
 `ProviderSetBlocked` carrying the decision.
 
-### 4. `orwatch check`
+### 4. `oewatch check`
 
 For pinned profiles, text output reports the source and timestamp, each pinned
 and backup provider's usability and reason, then the route or the blocked
@@ -302,8 +304,8 @@ creation uses `GITHUB_TOKEN` and does not fail the workflow when unavailable.
 - Python ≥ 3.11. **Standard library only at runtime** (`urllib.request`,
   `tomllib`, `json`, `argparse`, `dataclasses`, `datetime`, `pathlib`).
   Dev dependency: `pytest` only.
-- `pyproject.toml` (setuptools, src layout `src/orwatch/`), console script
-  `orwatch = orwatch.cli:main`, `[tool.pytest.ini_options] pythonpath = ["src"]`
+- `pyproject.toml` (setuptools, src layout `src/oewatch/`), console script
+  `oewatch = oewatch.cli:main`, `[tool.pytest.ini_options] pythonpath = ["src"]`
   so tests run without installation.
 - `LICENSE` (MIT), English for all code, comments, docs, and messages.
 - HTTP goes through an injectable fetch callable (`fetch_endpoints(model_id)
@@ -327,7 +329,7 @@ creation uses `GITHUB_TOKEN` and does not fail the workflow when unavailable.
   - config parsing and validation errors.
 - `examples/snapshots/z-ai__glm-5.3-flash/2026-10-07.json` and
   `2026-10-08.json`: two synthetic snapshots reproducing the incident so that
-  `orwatch diff --config examples/watch.toml` demonstrates the tool with no
+  `oewatch diff --config examples/watch.toml` demonstrates the tool with no
   network. `examples/watch.toml` points `snapshot_dir` at `examples/snapshots`.
 - `README.md`: what and why (the incident story in ~10 lines), install,
   quickstart using the examples, config reference, commands and exit codes,
@@ -338,11 +340,11 @@ creation uses `GITHUB_TOKEN` and does not fail the workflow when unavailable.
 
 ```bash
 .venv/bin/python -m pytest                                   # exit 0
-.venv/bin/python -m orwatch diff --config examples/watch.toml # exit 0, prints the incident diff
-.venv/bin/python -m orwatch diff --config examples/watch.toml --fail-on quantization_changed; echo $?   # 2
-.venv/bin/python -m orwatch check --config examples/watch.toml --profile production --offline; echo $?  # 7
+.venv/bin/python -m oewatch diff --config examples/watch.toml # exit 0, prints the incident diff
+.venv/bin/python -m oewatch diff --config examples/watch.toml --fail-on quantization_changed; echo $?   # 2
+.venv/bin/python -m oewatch check --config examples/watch.toml --profile production --offline; echo $?  # 7
 ```
 
-`python -m orwatch` must work (add `src/orwatch/__main__.py`). The venv at
+`python -m oewatch` must work (add `src/oewatch/__main__.py`). The venv at
 `.venv` already contains `pytest`; the package is importable via
 `pythonpath = ["src"]` without installation.
