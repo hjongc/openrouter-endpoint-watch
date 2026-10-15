@@ -190,8 +190,17 @@ Ad-hoc form without a config file:
 ### `orwatch history [--config] [--model ID] [--profile NAME] [--out FILE]`
 
 Walk all snapshots for each model chronologically, run the diff engine on
-each consecutive pair, and emit one markdown timeline (newest first). Writes
-to stdout or `--out FILE`. Days with no changes are omitted.
+each consecutive pair, and emit a Markdown document with a top-level
+`OpenRouter endpoint history` heading and one section per model. Each model
+section gives its tracking start date, snapshot count, and latest date, then
+lists changed snapshot pairs newest first under day headings one level deeper
+than the model heading. A model with no recorded changes says `No changes
+recorded yet.`; a model with no snapshots says `No snapshots yet.`. The
+introduction names the configured snapshot directory. Writes to stdout or
+`--out FILE`; valid configurations with no snapshots still exit successfully.
+
+Amendment 2026-10-15: history always emits this document structure, including
+for models with one snapshot, no changes, or no snapshots.
 
 ## GitHub Actions
 
