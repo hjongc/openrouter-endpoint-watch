@@ -1,0 +1,10 @@
+[watch]
+models = ["z-ai/glm-5.3-flash"]
+snapshot_dir = "snapshots"
+
+[profiles.production]
+quantizations = ["fp8"]
+required_parameters = ["seed", "response_format", "tools", "tool_choice"]
+min_eligible = 2
+preferred_providers = ["Near AI", "Inceptron"]
+healthy_only = true

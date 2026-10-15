@@ -1,0 +1,48 @@
+name: Daily OpenRouter endpoint snapshot
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install .
+      - run: orwatch snapshot
+      - run: orwatch history --out HISTORY.md
+      - name: Commit snapshots and history
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add snapshots HISTORY.md
+          git diff --cached --quiet || git commit -m "Update OpenRouter endpoint history"
+          git push
+      - name: Check for breaking endpoint changes
+        id: diff
+        run: |
+          set -o pipefail
+          set +e
+          orwatch diff --format md --fail-on quantization_changed,endpoint_removed,endpoint_replaced,profile_eligible_changed > endpoint-diff.md
+          result=$?
+          set -e
+          cat endpoint-diff.md
+          if [ "$result" -eq 2 ]; then
+            echo "breaking=true" >> "$GITHUB_OUTPUT"
+          elif [ "$result" -ne 0 ]; then
+            exit "$result"
+          fi
+      - name: Open issue for endpoint changes
+        if: steps.diff.outputs.breaking == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue create --title "OpenRouter endpoint changes detected" --body-file endpoint-diff.md || true
