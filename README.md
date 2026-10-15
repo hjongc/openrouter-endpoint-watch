@@ -1,6 +1,6 @@
 <div align="center">
 
-# orwatch
+# openrouter-endpoint-watch
 
 **Your LLM provider changed under you. Find out before your pipeline does.**
 
@@ -18,10 +18,10 @@ endpoint metadata: quantization flips, vanished providers, and dropped parameter
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture-dark.svg">
-  <img alt="orwatch pipeline: OpenRouter's public endpoint list is checked hourly by GitHub Actions and saved only when it changes, diffed into named change classes, and checked against your profile; results go to HISTORY.md, a GitHub issue on breaking changes, and a routing decision: ok, degraded, or blocked." src="docs/assets/architecture-light.svg" width="880">
+  <img alt="oewatch pipeline: OpenRouter's public endpoint list is checked hourly by GitHub Actions and saved only when it changes, diffed into named change classes, and checked against your profile; results go to HISTORY.md, a GitHub issue on breaking changes, and a routing decision: ok, degraded, or blocked." src="docs/assets/architecture-light.svg" width="880">
 </picture>
 
-orwatch watches the public endpoint list of the OpenRouter models you depend on.
+openrouter-endpoint-watch (command: `oewatch`) watches the public endpoint list of the OpenRouter models you depend on.
 Every hour it checks; when something changes, it saves a snapshot and tells you,
 by name, what changed: an fp8 endpoint that became fp4, a provider that
 disappeared, a parameter that stopped being supported. Before a run, it tells your pipeline which endpoints to use right now: all of
@@ -30,7 +30,7 @@ advance, or none, in which case it stops before you spend a single token.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/demo-dark.svg">
-  <img alt="Terminal: orwatch diff reports Parasail fp8 replaced by fp4, NextBit removed, and the production profile falling from 3 eligible endpoints to 1; orwatch check lists each pinned and backup provider with the reason it dropped, and blocks with exit 7." src="docs/assets/demo-light.svg" width="880">
+  <img alt="Terminal: oewatch diff reports Parasail fp8 replaced by fp4, NextBit removed, and the production profile falling from 3 eligible endpoints to 1; oewatch check lists each pinned and backup provider with the reason it dropped, and blocks with exit 7." src="docs/assets/demo-light.svg" width="880">
 </picture>
 
 ## What diff sees
@@ -44,12 +44,12 @@ One bad day, endpoint by endpoint. A model can look abundantly served, with 33
 endpoints listed, yet most fp8 endpoints were never usable for this profile
 because they lack `seed` or `response_format`. The three that were usable
 became one overnight: Parasail's fp8 endpoint was replaced by an fp4 one, and
-NextBit disappeared. orwatch reports both as named changes and flags the
+NextBit disappeared. oewatch reports both as named changes and flags the
 profile as below its minimum.
 
 ## Live in this repo
 
-This repository runs orwatch on itself. Every hour it checks
+This repository runs oewatch on itself. Every hour it checks
 `z-ai/glm-5.3-flash`; when anything changes, it saves a snapshot, updates the
 counts in the diagram at the top, and appends the change to
 [`HISTORY.md`](HISTORY.md). Because snapshots are saved only on change, the
@@ -85,13 +85,13 @@ model more than once.
 | `context_changed` | Context length or max completion tokens changed | |
 
 OpenRouter tags embed the quantization, so a flip looks like one endpoint
-leaving and another arriving. orwatch pairs them back into a single
+leaving and another arriving. oewatch pairs them back into a single
 `endpoint_replaced` so you read one change, not two.
 
 **Routing decision.** A profile encodes what your pipeline needs. An endpoint
 is eligible only if its quantization is listed, every required parameter is
 supported, and its status is healthy; `unknown` never matches unless you list
-it. If you pin providers, `orwatch check` turns that into one of three
+it. If you pin providers, `oewatch check` turns that into one of three
 decisions instead of a blunt pass or fail:
 
 | Decision | When | What your run gets | Exit code |
@@ -112,12 +112,12 @@ cd openrouter-endpoint-watch
 python -m pip install .
 
 # Replay the Oct 8 incident from bundled snapshots (no network):
-orwatch diff  --config examples/watch.toml
-orwatch check --config examples/watch.toml --profile production --offline; echo $?   # 7
+oewatch diff  --config examples/watch.toml
+oewatch check --config examples/watch.toml --profile production --offline; echo $?   # 7
 
 # Your own models, live:
-orwatch snapshot
-orwatch check --profile production
+oewatch snapshot
+oewatch check --profile production
 ```
 
 Python 3.11+, standard library only, no API key: the endpoint metadata is
@@ -130,10 +130,10 @@ routing. A metadata check takes about 0.3 seconds and the result is cached for
 five minutes, so it is cheap enough to sit in front of every request:
 
 ```python
-import orwatch
+import oewatch
 from openai import OpenAI
 
-decision = orwatch.check("z-ai/glm-5.3-flash", profile="production")
+decision = oewatch.check("z-ai/glm-5.3-flash", profile="production")
 if decision.status == "blocked":
     raise SystemExit(f"not running: {decision.dropped}")
 if decision.status == "degraded":
@@ -157,14 +157,14 @@ treat degraded as a failure, and `--record runs.jsonl` to keep, next to your
 results, which providers each run actually used:
 
 ```bash
-orwatch check --profile production --record runs.jsonl || exit 1
+oewatch check --profile production --record runs.jsonl || exit 1
 python run_my_batch.py
 ```
 
 No profile in a config file? The ad-hoc form works too:
 
 ```bash
-orwatch check --model z-ai/glm-5.3-flash --quant fp8 \
+oewatch check --model z-ai/glm-5.3-flash --quant fp8 \
   --require seed,response_format,tools,tool_choice \
   --pinned "Near AI,Inceptron" --min 1
 ```
@@ -196,10 +196,10 @@ are evaluated per model; add as many as your pipelines need.
 
 | Command | What it does | Exit codes |
 |---|---|---|
-| `orwatch snapshot [--always] [--at T]` | Fetch every configured model; write `snapshots/<model>/<UTC timestamp>.json` only if something changed | 0 ok, 1 if any model failed |
-| `orwatch diff [--from S --to S] [--format md\|json] [--fail-on CLASSES]` | Compare the two latest snapshots, or two given ones (a timestamp, or a date for that day's last snapshot) | 0 ok, **2** when a `--fail-on` class appears, 1 on error or no snapshots |
-| `orwatch check --profile NAME [--offline] [--format json] [--strict] [--record FILE]` | Decide which pinned or backup providers to use, on live metadata or the latest snapshot | 0 ok or degraded, 3 degraded with `--strict`, **7** blocked, 1 on error |
-| `orwatch history [--out FILE]` | Markdown history per model: tracking period and every recorded change, newest first | 0 ok, 1 on error |
+| `oewatch snapshot [--always] [--at T]` | Fetch every configured model; write `snapshots/<model>/<UTC timestamp>.json` only if something changed | 0 ok, 1 if any model failed |
+| `oewatch diff [--from S --to S] [--format md\|json] [--fail-on CLASSES]` | Compare the two latest snapshots, or two given ones (a timestamp, or a date for that day's last snapshot) | 0 ok, **2** when a `--fail-on` class appears, 1 on error or no snapshots |
+| `oewatch check --profile NAME [--offline] [--format json] [--strict] [--record FILE]` | Decide which pinned or backup providers to use, on live metadata or the latest snapshot | 0 ok or degraded, 3 degraded with `--strict`, **7** blocked, 1 on error |
+| `oewatch history [--out FILE]` | Markdown history per model: tracking period and every recorded change, newest first | 0 ok, 1 on error |
 
 All commands take `--config` (default `watch.toml`) and most take `--model ID`.
 A model with only one snapshot is not an error: `diff` says there is nothing to
@@ -225,7 +225,7 @@ on:
 
 GitHub runs schedules at most every 5 minutes and may delay runs near the top
 of the hour. Outside GitHub, any scheduler works, for example a crontab line:
-`*/15 * * * * cd /path/to/repo && orwatch snapshot`.
+`*/15 * * * * cd /path/to/repo && oewatch snapshot`.
 
 To watch your own models, fork the repository, edit `watch.toml`, and enable
 Actions. The workflow only needs the default `GITHUB_TOKEN` with contents and
@@ -270,7 +270,7 @@ changed twice, and neither time did anything raise an error.
 No provider lied. **The set of endpoints that met my requirements changed
 without notice, and I learned it at run time.** Every one of those changes was
 already visible in OpenRouter's public `/endpoints` metadata, but that metadata
-has no history and no change feed. orwatch is that history and that feed.
+has no history and no change feed. openrouter-endpoint-watch is that history and that feed.
 
 ## FAQ
 
@@ -279,13 +279,13 @@ The filter is what dropped my fastest provider without a word. A filter decides
 per request; it cannot tell you that the set it filters from changed yesterday.
 
 **Why not turn OpenRouter's fallbacks on?** Then a run can silently switch to
-a provider with different weights or parameter support halfway through. orwatch
+a provider with different weights or parameter support halfway through. oewatch
 gives you a controlled version instead: substitutes you approved in advance,
 chosen before the run starts, and recorded with `--record`.
 
 **Why poll instead of listening for a webhook?** OpenRouter publishes no
 webhook or change feed for endpoint metadata, and the endpoints API sends no
-ETag to ask "has this changed?". So orwatch polls a cheap, keyless metadata
+ETag to ask "has this changed?". So oewatch polls a cheap, keyless metadata
 request and turns it into events itself: it records and alerts only when
 something actually changed.
 
