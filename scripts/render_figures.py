@@ -30,14 +30,12 @@ PALETTES = {
         "secondary": "#52514e", "muted": "#898781", "grid": "#e1e0d9",
         "axis": "#c3c2b7", "blue": "#2a78d6", "serious": "#ec835a",
         "critical": "#d03b3b", "good": "#0ca30c",
-        "bars": ("#86b6ef", "#5598e7", "#2a78d6", "#184f95"),
     },
     "dark": {
         "surface": "#1a1a19", "border": "#2c2c2a", "ink": "#f0efec",
         "secondary": "#c3c2b7", "muted": "#898781", "grid": "#2c2c2a",
         "axis": "#383835", "blue": "#3987e5", "serious": "#ec835a",
         "critical": "#d03b3b", "good": "#0ca30c",
-        "bars": ("#184f95", "#256abf", "#3987e5", "#86b6ef"),
     },
 }
 
@@ -140,59 +138,12 @@ def incident(mode: str) -> str:
     return svg_finish(parts)
 
 
-def latest_snapshot(config: dict) -> tuple[dict, Path]:
+def latest_snapshot(config: dict) -> dict:
     model = config["watch"]["models"][0]
     paths = list_snapshots(config["watch"]["snapshot_dir"], model)
     if not paths:
         raise FileNotFoundError(f"no snapshots found for {model}")
-    path = paths[-1]
-    return read_snapshot(path), path
-
-
-def funnel(mode: str, config: dict, snapshot: dict, snapshot_path: Path) -> str:
-    p = PALETTES[mode]
-    profiles = config.get("profiles", {})
-    profile_name = "production" if "production" in profiles else next(iter(profiles), None)
-    if profile_name is None:
-        raise ValueError("config requires at least one profile")
-    profile = profiles[profile_name]
-    endpoints = snapshot["endpoints"]
-    quantized = {tag: ep for tag, ep in endpoints.items() if ep.get("quantization", "unknown") in profile.get("quantizations", [])}
-    params = set(profile.get("required_parameters", []))
-    with_params = {tag: ep for tag, ep in quantized.items() if params.issubset(ep.get("supported_parameters", []))}
-    eligible = eligible_endpoints(snapshot, profile)
-    counts = [len(endpoints), len(quantized), len(with_params), len(eligible)]
-    model = snapshot["model_id"]
-    date = snapshot_path.stem
-    title = f"How many of {counts[0]} listed endpoints can serve my production profile?"
-    subtitle = f"{model} · OpenRouter snapshot {date} · regenerated daily"
-    parts = svg_start("funnel", mode, 430, title,
-                      f"A four-stage horizontal bar chart filters {counts[0]} listed endpoints down to {counts[-1]} fully eligible endpoints.")
-    parts += [text(42, 43, title, fill=p["ink"], size=18, weight=600),
-              text(42, 69, subtitle, fill=p["secondary"], size=13)]
-    labels = ["Listed endpoints", f"Quantization in profile ({', '.join(profile.get('quantizations', []))})",
-              "+ required parameters", "+ healthy (status ≥ 0)"]
-    base_x, label_right, max_width, start_y = 300.0, 276.0, 520.0, 138.0
-    row_gap, bar_h = 56.0, 22.0
-    parts.append(f'<line x1="{base_x:g}" y1="{start_y - 18:g}" x2="{base_x:g}" y2="{start_y + 3 * row_gap + bar_h + 4:g}" stroke="{p["axis"]}" stroke-width="1"/>')
-    for i, (label, count) in enumerate(zip(labels, counts)):
-        y = start_y + i * row_gap
-        parts.append(text(label_right, y + 16, label, fill=p["secondary"], size=12, anchor="end"))
-        width = max_width * count / counts[0] if counts[0] else 0
-        right = base_x + width
-        # A square left edge and softly rounded data end are drawn as a path.
-        d = f"M {base_x:g} {y:g} H {max(base_x, right - 4):g} Q {right:g} {y:g} {right:g} {y + 4:g} V {y + bar_h - 4:g} Q {right:g} {y + bar_h:g} {max(base_x, right - 4):g} {y + bar_h:g} H {base_x:g} Z"
-        parts.append(f'<path d="{d}" fill="{p["bars"][i]}"/>')
-        value = f"{count} usable" if i == 3 else str(count)
-        parts.append(text(right + 12, y + 16, value, fill=p["ink"], size=12, weight=600 if i == 3 else 400))
-    quant_label = ", ".join(profile.get("quantizations", [])) or "none"
-    required_label = ", ".join(profile.get("required_parameters", [])) or "none"
-    rel_snapshot = Path(config.get("_snapshot_dir_label", config["watch"]["snapshot_dir"])) / model.replace("/", "__") / f"{date}.json"
-    parts.append(multiline(42, 382, [
-        f"Profile from {args_config_label(config)}: quantizations {quant_label}; requires {required_label}.",
-        f"Source: {rel_snapshot.as_posix()}.",
-    ], fill=p["muted"], size=11, line_height=16))
-    return svg_finish(parts)
+    return read_snapshot(paths[-1])
 
 
 def architecture(mode: str, count: int, eligible_count: int) -> str:
@@ -371,10 +322,6 @@ def board(mode: str) -> str:
     return svg_finish(parts)
 
 
-def args_config_label(config: dict) -> str:
-    return config.get("_source_label", "watch.toml")
-
-
 def run_cli(command: list[str]) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT / "src")
@@ -464,22 +411,23 @@ def main() -> int:
     if not config_path.is_absolute():
         config_path = ROOT / config_path
     config = load_config(config_path)
-    config["_source_label"] = options.config
-    config["_snapshot_dir_label"] = config["watch"]["snapshot_dir"]
     # Match the CLI: relative snapshot directories are resolved from the repository cwd.
     snapshot_dir = Path(config["watch"]["snapshot_dir"])
     if not snapshot_dir.is_absolute():
         config["watch"]["snapshot_dir"] = str((ROOT / snapshot_dir).resolve())
-    snapshot, path = latest_snapshot(config)
+    snapshot = latest_snapshot(config)
     out = Path(options.out)
     if not out.is_absolute():
         out = ROOT / out
     out.mkdir(parents=True, exist_ok=True)
+    profiles = config.get("profiles", {})
+    profile = profiles.get("production", next(iter(profiles.values()), {}))
+    endpoint_count = len(snapshot["endpoints"])
+    eligible_count = len(eligible_endpoints(snapshot, profile))
     for mode in ("light", "dark"):
         (out / f"incident-{mode}.svg").write_text(incident(mode), encoding="utf-8", newline="\n")
-        (out / f"funnel-{mode}.svg").write_text(funnel(mode, config, snapshot, path), encoding="utf-8", newline="\n")
         (out / f"demo-{mode}.svg").write_text(demo(mode), encoding="utf-8", newline="\n")
-        (out / f"architecture-{mode}.svg").write_text(architecture(mode, len(snapshot["endpoints"]), len(eligible_endpoints(snapshot, config.get("profiles", {}).get("production", next(iter(config.get("profiles", {}).values()), {}))))), encoding="utf-8", newline="\n")
+        (out / f"architecture-{mode}.svg").write_text(architecture(mode, endpoint_count, eligible_count), encoding="utf-8", newline="\n")
         (out / f"board-{mode}.svg").write_text(board(mode), encoding="utf-8", newline="\n")
     return 0
 

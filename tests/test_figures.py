@@ -11,8 +11,6 @@ ROOT = Path(__file__).resolve().parents[1]
 FIGURES = (
     "incident-light.svg",
     "incident-dark.svg",
-    "funnel-light.svg",
-    "funnel-dark.svg",
     "demo-light.svg",
     "demo-dark.svg",
     "architecture-light.svg",
