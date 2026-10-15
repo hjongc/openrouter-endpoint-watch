@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "model_id": "z-ai/glm-5.3-flash",
-  "fetched_at": "2026-10-15T05:50:50Z",
+  "fetched_at": "2026-10-15T06:46:02Z",
   "endpoints": {
     "atlas-cloud/fp8": {
       "name": "AtlasCloud | z-ai/glm-5.3-flash-20260826",
@@ -136,7 +136,7 @@
         "function": false
       },
       "status": 0,
-      "uptime_last_1d": 97.59650400582666,
+      "uptime_last_1d": 97.60696156635244,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -339,7 +339,7 @@
         "function": true
       },
       "status": 0,
-      "uptime_last_1d": 98.20689655172414,
+      "uptime_last_1d": 98.32904884318766,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -435,7 +435,7 @@
         "function": true
       },
       "status": 0,
-      "uptime_last_1d": 87.32654949121184,
+      "uptime_last_1d": 87.85211267605634,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -579,7 +579,7 @@
         "function": false
       },
       "status": -5,
-      "uptime_last_1d": 96.59722222222223,
+      "uptime_last_1d": 96.04166666666667,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -734,7 +734,7 @@
         "function": true
       },
       "status": 0,
-      "uptime_last_1d": 91.17013639626705,
+      "uptime_last_1d": 92.89303661162958,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -794,9 +794,9 @@
       "model_name": "Z.ai: GLM 5.3 Flash",
       "context_length": 1048576,
       "pricing": {
-        "prompt": "0.000000044",
+        "prompt": "0.000000049",
         "completion": "0.000001",
-        "input_cache_read": "0.000000018",
+        "input_cache_read": "0.00000002",
         "discount": 0
       },
       "provider_name": "Morph",
@@ -933,8 +933,8 @@
         "required": false,
         "function": false
       },
-      "status": 0,
-      "uptime_last_1d": 98.88888888888889,
+      "status": -2,
+      "uptime_last_1d": 98.75,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -985,7 +985,7 @@
         "function": true
       },
       "status": 0,
-      "uptime_last_1d": 94.6958981612447,
+      "uptime_last_1d": 95.40311173974541,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -1138,7 +1138,7 @@
         "required": true,
         "function": true
       },
-      "status": 0,
+      "status": -2,
       "uptime_last_1d": 100,
       "supports_implicit_caching": true,
       "native_tools": {},
@@ -1378,8 +1378,8 @@
         "required": false,
         "function": false
       },
-      "status": -2,
-      "uptime_last_1d": 93.01496792587312,
+      "status": 0,
+      "uptime_last_1d": 93.79900213827513,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -1425,7 +1425,7 @@
         "function": false
       },
       "status": 0,
-      "uptime_last_1d": 95.90277777777779,
+      "uptime_last_1d": 96.25,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -1476,8 +1476,8 @@
         "required": true,
         "function": true
       },
-      "status": 0,
-      "uptime_last_1d": 95.27777777777777,
+      "status": -2,
+      "uptime_last_1d": 93.05555555555556,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
@@ -1524,7 +1524,7 @@
         "function": true
       },
       "status": 0,
-      "uptime_last_1d": 97.63066202090592,
+      "uptime_last_1d": 97.62900976290098,
       "supports_implicit_caching": true,
       "native_tools": {},
       "supports_voice_cloning": false,
