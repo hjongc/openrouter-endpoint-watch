@@ -153,20 +153,32 @@ def cmd_diff(args: argparse.Namespace) -> int:
 
 
 def _profile_for_check(args: argparse.Namespace, config: dict[str, Any] | None) -> dict[str, Any]:
-    if config:
+    adhoc_given = args.quant is not None or args.require is not None or args.min is not None
+    if args.profile and adhoc_given:
+        raise ConfigError("use either --profile or the ad-hoc flags")
+    if args.profile:
+        if config is None:
+            raise ConfigError(f"profile requires a config file: {args.config}")
         profiles = config.get("profiles", {})
         if args.profile not in profiles:
             raise ConfigError(f"unknown profile: {args.profile}")
         return profiles[args.profile]
-    if not args.quant or args.min is None:
-        raise ConfigError("ad-hoc check requires --quant and --min")
+    if args.quant is None and args.min is None:
+        raise ConfigError("use either --profile or the ad-hoc flags (--quant and --min)")
+    if args.quant is None or args.min is None:
+        raise ConfigError("ad-hoc check requires both --quant and --min")
     return {"quantizations": [v for v in args.quant.split(",") if v], "required_parameters": [v for v in (args.require or "").split(",") if v], "min_eligible": args.min, "healthy_only": True}
 
 
 def cmd_check(args: argparse.Namespace) -> int:
     config = _load_optional_config(args.config)
     profile = _profile_for_check(args, config)
-    models = _models(config, args.model)
+    adhoc = args.profile is None
+    if adhoc and not args.model:
+        raise ConfigError("--model is required for an ad-hoc check")
+    if adhoc and args.offline and config is None:
+        raise ConfigError("offline ad-hoc check requires a config file with snapshot_dir")
+    models = [args.model] if adhoc else _models(config, args.model)
     snapshot_dir = _snapshot_dir(config)
     failures = []
     for model in models:
@@ -244,7 +256,7 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--model")
     check.add_argument("--offline", action="store_true")
     check.add_argument("--quant")
-    check.add_argument("--require", default="")
+    check.add_argument("--require")
     check.add_argument("--min", type=int)
     check.set_defaults(func=cmd_check)
     history = sub.add_parser("history")

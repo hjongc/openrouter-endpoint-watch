@@ -115,6 +115,114 @@ def test_cli_exit_codes_and_config_validation(tmp_path, monkeypatch):
         load_config(bad)
 
 
+def test_adhoc_check_with_default_config_uses_flags_and_returns_zero(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "watch.toml").write_text(
+        '[watch]\nmodels=["configured/model"]\nsnapshot_dir="snaps"\n', encoding="utf-8"
+    )
+    fetched = []
+    monkeypatch.setattr(
+        "orwatch.cli.fetch_endpoints",
+        lambda model: fetched.append(model) or {"data": {"endpoints": [
+            endpoint("one", params=["seed", "response_format", "tools", "tool_choice"]),
+            endpoint("two", provider="B", params=["seed", "response_format", "tools", "tool_choice"]),
+        ]}},
+    )
+
+    result = main(["check", "--model", MODEL, "--quant", "fp8", "--require",
+                   "seed,response_format,tools,tool_choice", "--min", "2"])
+
+    assert result == 0
+    assert fetched == [MODEL]
+    assert f"{MODEL}: 2 eligible endpoint(s) (minimum 2)" in capsys.readouterr().out
+
+
+def test_adhoc_check_with_default_config_returns_seven_below_minimum(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "watch.toml").write_text(
+        '[watch]\nmodels=["configured/model"]\nsnapshot_dir="snaps"\n', encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        "orwatch.cli.fetch_endpoints",
+        lambda model: {"data": {"endpoints": [endpoint("one", params=["seed"])]}},
+    )
+
+    result = main(["check", "--model", MODEL, "--quant", "fp8", "--require", "seed", "--min", "2"])
+
+    assert result == 7
+    assert "adhoc: 1 eligible endpoint" in capsys.readouterr().err
+
+
+def test_adhoc_check_without_config_uses_explicit_model(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    fetched = []
+    monkeypatch.setattr(
+        "orwatch.cli.fetch_endpoints",
+        lambda model: fetched.append(model) or {"data": {"endpoints": [endpoint("one")]}},
+    )
+
+    result = main(["check", "--model", MODEL, "--quant", "fp8", "--min", "1"])
+
+    assert result == 0
+    assert fetched == [MODEL]
+    assert f"{MODEL}: 1 eligible endpoint" in capsys.readouterr().out
+
+
+def test_adhoc_check_requires_model_even_when_config_has_models(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "watch.toml").write_text(
+        '[watch]\nmodels=["configured/model"]\nsnapshot_dir="snaps"\n', encoding="utf-8"
+    )
+
+    result = main(["check", "--quant", "fp8", "--min", "1"])
+
+    assert result == 1
+    assert "--model is required for an ad-hoc check" in capsys.readouterr().err
+
+
+def test_check_rejects_profile_and_adhoc_flags(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "watch.toml").write_text(
+        '[watch]\nmodels=["a/b"]\nsnapshot_dir="snaps"\n[profiles.p]\nquantizations=["fp8"]\n',
+        encoding="utf-8",
+    )
+
+    result = main(["check", "--profile", "p", "--quant", "fp8", "--min", "1"])
+
+    assert result == 1
+    assert "use either --profile or the ad-hoc flags" in capsys.readouterr().err
+
+
+def test_check_requires_profile_or_adhoc_form(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "watch.toml").write_text(
+        '[watch]\nmodels=["a/b"]\nsnapshot_dir="snaps"\n', encoding="utf-8"
+    )
+
+    result = main(["check"])
+
+    assert result == 1
+    assert "either --profile or the ad-hoc flags" in capsys.readouterr().err
+
+
+def test_offline_adhoc_check_uses_config_snapshot_dir(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    snapshot_dir = tmp_path / "saved"
+    snapdir = snapshot_dir / MODEL.replace("/", "__")
+    snapdir.mkdir(parents=True)
+    (snapdir / "2026-10-15.json").write_text(
+        json.dumps(snapshot({"ok": endpoint("ok")})), encoding="utf-8"
+    )
+    (tmp_path / "watch.toml").write_text(
+        f'[watch]\nmodels=["configured/model"]\nsnapshot_dir="{snapshot_dir}"\n', encoding="utf-8"
+    )
+
+    result = main(["check", "--model", MODEL, "--quant", "fp8", "--min", "1", "--offline"])
+
+    assert result == 0
+    assert f"{MODEL}: 1 eligible endpoint" in capsys.readouterr().out
+
+
 def test_diff_and_history_with_one_snapshot(tmp_path, capsys):
     snapdir = tmp_path / "snaps" / "a__b"
     snapdir.mkdir(parents=True)
