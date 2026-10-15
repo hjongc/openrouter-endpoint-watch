@@ -4,10 +4,10 @@
 
 **Your LLM provider changed under you. Find out before your pipeline does.**
 
-Daily snapshots, diffs, and pre-run checks for OpenRouter endpoint metadata:
-quantization flips, vanished providers, and dropped parameters.
+Hourly checks, change-only snapshots, and pre-run gates for OpenRouter endpoint
+metadata: quantization flips, vanished providers, and dropped parameters.
 
-[![daily snapshot](https://github.com/hjongc/openrouter-endpoint-watch/actions/workflows/daily.yml/badge.svg)](https://github.com/hjongc/openrouter-endpoint-watch/actions/workflows/daily.yml)
+[![endpoint watch](https://github.com/hjongc/openrouter-endpoint-watch/actions/workflows/watch.yml/badge.svg)](https://github.com/hjongc/openrouter-endpoint-watch/actions/workflows/watch.yml)
 ![python](https://img.shields.io/badge/python-3.11%2B-2a78d6)
 ![dependencies](https://img.shields.io/badge/runtime%20deps-0-2a78d6)
 [![license](https://img.shields.io/badge/license-MIT-2a78d6)](LICENSE)
@@ -18,13 +18,13 @@ quantization flips, vanished providers, and dropped parameters.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture-dark.svg">
-  <img alt="orwatch pipeline: OpenRouter's public endpoint list is snapshotted daily by GitHub Actions, diffed into named change classes, and checked against your profile; results go to HISTORY.md, a GitHub issue on breaking changes, and exit code 7 as a pre-run gate." src="docs/assets/architecture-light.svg" width="880">
+  <img alt="orwatch pipeline: OpenRouter's public endpoint list is checked hourly by GitHub Actions and saved only when it changes, diffed into named change classes, and checked against your profile; results go to HISTORY.md, a GitHub issue on breaking changes, and exit code 7 as a pre-run gate." src="docs/assets/architecture-light.svg" width="880">
 </picture>
 
 orwatch watches the public endpoint list of the OpenRouter models you depend on.
-Every day it keeps a snapshot and tells you, by name, what changed: an fp8
-endpoint that became fp4, a provider that disappeared, a parameter that stopped
-being supported. Then it checks what is left against what your pipeline
+Every hour it checks; when something changes, it saves a snapshot and tells you,
+by name, what changed: an fp8 endpoint that became fp4, a provider that
+disappeared, a parameter that stopped being supported. Then it checks what is left against what your pipeline
 actually needs, and fails fast, before you spend a single token.
 
 <picture>
@@ -48,24 +48,28 @@ profile as below its minimum.
 
 ## Live in this repo
 
-This repository runs orwatch on itself. Every day it snapshots
-`z-ai/glm-5.3-flash`, updates the counts in the diagram at the top, and appends
-anything that changed to [`HISTORY.md`](HISTORY.md). The margin really is that
+This repository runs orwatch on itself. Every hour it checks
+`z-ai/glm-5.3-flash`; when anything changes, it saves a snapshot, updates the
+counts in the diagram at the top, and appends the change to
+[`HISTORY.md`](HISTORY.md). Because snapshots are saved only on change, the
+files in [`snapshots/`](snapshots/) form a timestamped log of change events. The margin really is that
 thin and that mobile: on the day the repository went public (2026-10-15), the
 number of endpoints that could serve the profile went from **5 to 3 of 33
 within a few hours**.
 
 ## How it works
 
-**Snapshot.** Once a day, orwatch stores the stable fields of every endpoint
+**Snapshot.** Each check normalizes the stable fields of every endpoint
 (provider, tag, quantization, status, supported parameters, pricing, context)
-and drops per-minute noise such as latency and throughput. Endpoints are
+and drops per-minute noise such as latency and throughput. The result is saved
+as `snapshots/<model>/<UTC timestamp>.json` only when it differs from the last
+saved snapshot, so a quiet day costs nothing and a change is pinned to the hour. Endpoints are
 identified by their OpenRouter tag, because one provider can list the same
 model more than once.
 
 **Diff.** Consecutive snapshots are compared and every difference gets a name:
 
-| Change class | What happened | Opens an issue in the daily workflow |
+| Change class | What happened | Opens an issue in the scheduled workflow |
 |---|---|:---:|
 | `endpoint_replaced` | A provider's endpoint left and a new one arrived in its place, typically a quantization flip (`parasail/fp8` → `parasail/fp4`) | ● |
 | `quantization_changed` | The quantization of an endpoint changed | ● |
@@ -145,22 +149,23 @@ Profiles are evaluated per model. Add as many as your pipelines need.
 
 | Command | What it does | Exit codes |
 |---|---|---|
-| `orwatch snapshot [--date D]` | Fetch every configured model and write `snapshots/<model>/<date>.json` | 0 ok, 1 if any model failed |
-| `orwatch diff [--from D --to D] [--format md\|json] [--fail-on CLASSES]` | Compare the two latest snapshots (or a date range) | 0 ok, **2** when a `--fail-on` class appears, 1 on error or no snapshots |
+| `orwatch snapshot [--always] [--at T]` | Fetch every configured model; write `snapshots/<model>/<UTC timestamp>.json` only if something changed | 0 ok, 1 if any model failed |
+| `orwatch diff [--from S --to S] [--format md\|json] [--fail-on CLASSES]` | Compare the two latest snapshots, or two given ones (a timestamp, or a date for that day's last snapshot) | 0 ok, **2** when a `--fail-on` class appears, 1 on error or no snapshots |
 | `orwatch check --profile NAME [--offline]` | Evaluate a profile on live metadata or the latest snapshot | 0 ok, **7** below `min_eligible`, 1 on error |
-| `orwatch history [--out FILE]` | Markdown history per model: tracking period and every day with changes, newest first | 0 ok, 1 on error |
+| `orwatch history [--out FILE]` | Markdown history per model: tracking period and every recorded change, newest first | 0 ok, 1 on error |
 
 All commands take `--config` (default `watch.toml`) and most take `--model ID`.
 A model with only one snapshot is not an error: `diff` says there is nothing to
-compare yet and exits 0, so a fresh daily job does not fail on its first run.
+compare yet and exits 0, so a fresh scheduled job does not fail on its first run.
 
-## Run it daily for your own models
+## Run it on a schedule for your own models
 
 This repository watches itself with
-[`.github/workflows/daily.yml`](.github/workflows/daily.yml): every day at
-03:00 UTC it snapshots, refreshes [`HISTORY.md`](HISTORY.md) and the figures,
-commits them, and opens an issue when one of the marked change classes above
-appears.
+[`.github/workflows/watch.yml`](.github/workflows/watch.yml): every hour (at
+minute 17) it checks every configured model. Only when something changed does
+it save a snapshot, refresh [`HISTORY.md`](HISTORY.md) and the figures, commit,
+and open an issue for the marked change classes above. A quiet hour leaves a
+one-line note in the run summary and nothing in the repository.
 
 To watch your own models, fork the repository, edit `watch.toml`, and enable
 Actions. The workflow only needs the default `GITHUB_TOKEN` with contents and
@@ -217,6 +222,12 @@ per request; it cannot tell you that the set it filters from changed yesterday.
 with different weights or parameter support halfway through. For anything you
 compare across runs, that is worse than stopping.
 
+**Why poll instead of listening for a webhook?** OpenRouter publishes no
+webhook or change feed for endpoint metadata, and the endpoints API sends no
+ETag to ask "has this changed?". So orwatch polls a cheap, keyless metadata
+request and turns it into events itself: it records and alerts only when
+something actually changed.
+
 **Which models can I watch?** Any OpenRouter model id. List as many as you like
 in `watch.toml`; profiles are evaluated per model.
 
@@ -226,8 +237,8 @@ it under real load) is the next step on the roadmap.
 
 ## Roadmap
 
-- Eligibility trend chart: the daily count of eligible endpoints per profile,
-  drawn from the accumulated snapshots.
+- Eligibility trend chart: the number of eligible endpoints per profile over
+  time, drawn from the change snapshots.
 - v0.2: measured probes alongside metadata (latency, tok/s, and an output
   consistency check per endpoint).
 - Slack and webhook alerts in addition to GitHub issues.

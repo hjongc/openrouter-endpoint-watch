@@ -77,4 +77,4 @@ def test_architecture_uses_latest_config_snapshot_counts(tmp_path: Path) -> None
     assert result.returncode == 0, result.stderr
     root = ET.parse(output / "architecture-light.svg").getroot()
     rendered_text = "".join(root.itertext())
-    assert "of 33 eligible today" in rendered_text
+    assert "of 33 eligible now" in rendered_text

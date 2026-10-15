@@ -157,9 +157,9 @@ def architecture(mode: str, count: int, eligible_count: int) -> str:
     node_y = 106
     nodes = [
         (24, "OpenRouter", "public endpoint list", "no API key"),
-        (255, "snapshot", "daily, via GitHub Actions", f"{count} endpoints today"),
+        (255, "snapshot", "hourly check, saved on change", f"{count} endpoints now"),
         (486, "diff", "10 named change classes", "fp8 → fp4 = replaced"),
-        (717, "profile check", "fp8 + seed, tools, …", f"{eligible_count} of {count} eligible today"),
+        (717, "profile check", "fp8 + seed, tools, …", f"{eligible_count} of {count} eligible now"),
     ]
     for x, label, line1, line2 in nodes:
         parts.append(f'<rect x="{x}" y="{node_y}" width="{node_width}" height="{node_height}" rx="10" fill="{surface}" stroke="{p["grid"]}" stroke-width="1"/>')
@@ -172,7 +172,7 @@ def architecture(mode: str, count: int, eligible_count: int) -> str:
         parts.append(f'<path d="M {x2 - 4} {node_y + 37} L {x2} {node_y + 41} L {x2 - 4} {node_y + 45} Z" fill="{p["muted"]}"/>')
 
     outputs = [
-        (56, p["blue"], "HISTORY.md", "daily timeline"),
+        (56, p["blue"], "HISTORY.md", "change timeline"),
         (120, p["serious"], "GitHub issue", "on a breaking change"),
         (184, p["critical"], "exit 7", "pre-run gate"),
     ]
@@ -337,6 +337,8 @@ def demo(mode: str) -> str:
     check = run_cli(check_cmd)
     diff_lines = diff.stdout.rstrip("\n").splitlines()
     check_first = check.stdout.splitlines()[0] if check.stdout.splitlines() else ""
+    # Keep the example transcript stable; it predates check's offline source label.
+    check_first = check_first.split(" (snapshot ", 1)[0]
     rows: list[tuple[str, str]] = []
     rows.append(("command", "$ orwatch diff --config examples/watch.toml"))
     for index, line in enumerate(diff_lines):
