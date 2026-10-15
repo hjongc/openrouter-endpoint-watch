@@ -1,13 +1,17 @@
-name: Daily OpenRouter endpoint snapshot
+name: OpenRouter endpoint watch
 
 on:
   schedule:
-    - cron: "0 3 * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
   issues: write
+
+concurrency:
+  group: orwatch
+  cancel-in-progress: false
 
 jobs:
   snapshot:
@@ -18,10 +22,15 @@ jobs:
         with:
           python-version: "3.11"
       - run: python -m pip install .
-      - run: orwatch snapshot
+      - name: Snapshot endpoints
+        id: snap
+        run: orwatch snapshot
       - run: orwatch history --out HISTORY.md
+        if: steps.snap.outputs.changed == 'true'
       - run: PYTHONPATH=src python scripts/render_figures.py
+        if: steps.snap.outputs.changed == 'true'
       - name: Commit snapshots and history
+        if: steps.snap.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -30,6 +39,7 @@ jobs:
           git push
       - name: Check for breaking endpoint changes
         id: diff
+        if: steps.snap.outputs.changed == 'true'
         run: |
           set -o pipefail
           set +e
@@ -43,7 +53,10 @@ jobs:
             exit "$result"
           fi
       - name: Open issue for endpoint changes
-        if: steps.diff.outputs.breaking == 'true'
+        if: steps.snap.outputs.changed == 'true' && steps.diff.outputs.breaking == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh issue create --title "OpenRouter endpoint changes detected" --body-file endpoint-diff.md || true
+      - name: Record unchanged poll
+        if: steps.snap.outputs.changed != 'true'
+        run: echo "No change at $(date -u '+%Y-%m-%d %H:%M UTC')" >> "$GITHUB_STEP_SUMMARY"
