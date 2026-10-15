@@ -77,14 +77,15 @@ workflow, from the snapshots in [`snapshots/`](snapshots/).
 
 ## Why I built this
 
-I build an LLM pipeline that is headed for my company's internal, closed
-network. Until it moves there, it runs through OpenRouter, and I wanted those
-runs to behave like the deployment it is rehearsing for. So I matched the
-quantization the internal environment will use, **fp8**, and required what
-the pipeline depends on: **`seed`, `response_format`, `tools` and
-`tool_choice`.**
+My company runs an LLM on its own servers inside a closed network. Developing
+in there is slow, so I built my pipeline outside first and tested it outside
+before moving it in. For those outside tests to say anything about the inside,
+the model had to be served the way it is served internally: **the same model,
+the same fp8 quantization**, plus the parameters the pipeline depends on,
+**`seed`, `response_format`, `tools` and `tool_choice`.** OpenRouter was where
+I could get that.
 
-Matching the quantization was not enough. Even among fp8 providers, stability
+Matching the model and quantization was not enough. Even among fp8 providers, stability
 and speed differed from one host to the next, so on 2026-09-03 I benchmarked
 the ones that qualified and pinned three: Reka, Parasail and NextBit. Fallbacks
 off, so a run could never drift to a different setup.

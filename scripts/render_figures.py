@@ -80,7 +80,7 @@ def svg_finish(parts: list[str]) -> str:
 
 def incident(mode: str) -> str:
     p = PALETTES[mode]
-    title = "My production pipeline's eligible OpenRouter providers"
+    title = "My pipeline's eligible OpenRouter providers"
     subtitle = "Pinned fp8 providers for z-ai/glm-5.3-flash that still met the profile (fp8 + seed, response_format, tools, tool_choice)"
     parts = svg_start("incident", mode, 544, title,
                       "A step chart shows eligible pinned providers falling from three to zero between September 3 and October 8, 2026.")

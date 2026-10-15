@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="880" height="544" viewBox="0 0 880 544" role="img" aria-labelledby="title desc">
-<title id="title">My production pipeline&#x27;s eligible OpenRouter providers</title>
+<title id="title">My pipeline&#x27;s eligible OpenRouter providers</title>
 <desc id="desc">A step chart shows eligible pinned providers falling from three to zero between September 3 and October 8, 2026.</desc>
 <rect x="0.5" y="0.5" width="879" height="543" rx="12" fill="#1a1a19" stroke="#2c2c2a"/>
-<text x="42" y="43" fill="#f0efec" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18px" font-weight="600" text-anchor="start" >My production pipeline&#x27;s eligible OpenRouter providers</text>
+<text x="42" y="43" fill="#f0efec" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18px" font-weight="600" text-anchor="start" >My pipeline&#x27;s eligible OpenRouter providers</text>
 <text x="42" y="69" fill="#c3c2b7" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13px" font-weight="400" text-anchor="start" >Pinned fp8 providers for z-ai/glm-5.3-flash that still met the profile (fp8 + seed, response_format, tools, tool_choice)</text>
 <line x1="72" y1="432" x2="832" y2="432" stroke="#2c2c2a" stroke-width="1"/>
 <text x="58" y="436" fill="#898781" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11px" font-weight="400" text-anchor="end" >0</text>
