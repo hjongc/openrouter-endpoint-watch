@@ -47,6 +47,13 @@ def test_renderer_writes_deterministic_well_formed_figures(tmp_path: Path) -> No
         assert root.find("{http://www.w3.org/2000/svg}desc") is not None
         if filename.startswith("board-"):
             assert len(root.findall(".//*[@data-row]")) == 13
+        if filename.startswith("demo-"):
+            rendered = "".join(root.itertext())
+            assert "pinned  Reka" in rendered
+            assert "backup  Inceptron" in rendered
+            assert "→ 1 usable provider, need 2 · not running" in rendered
+            assert "exit 7" in rendered
+            assert int(root.attrib["height"]) > 340
 
     second = subprocess.run(command, cwd=ROOT, env=env, capture_output=True, text=True, check=False)
     assert second.returncode == 0, second.stderr
@@ -78,3 +85,4 @@ def test_architecture_uses_latest_config_snapshot_counts(tmp_path: Path) -> None
     root = ET.parse(output / "architecture-light.svg").getroot()
     rendered_text = "".join(root.itertext())
     assert "of 33 eligible now" in rendered_text
+    assert "12 named change classes" in rendered_text

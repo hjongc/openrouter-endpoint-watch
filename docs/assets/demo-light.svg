@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="880" height="340" viewBox="0 0 880 340" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="500" viewBox="0 0 880 500" role="img" aria-labelledby="title desc">
 <title id="title">orwatch demo terminal</title>
 <desc id="desc">A terminal transcript shows an endpoint replacement, a profile falling below its minimum, and offline check exit code 7.</desc>
-<rect x="0.5" y="0.5" width="879" height="339" rx="12" fill="#fcfcfb" stroke="#e1e0d9"/>
-<rect x="24" y="24" width="832" height="292" rx="10" fill="#fcfcfb" stroke="#e1e0d9"/>
+<rect x="0.5" y="0.5" width="879" height="499" rx="12" fill="#fcfcfb" stroke="#e1e0d9"/>
+<rect x="24" y="24" width="832" height="452" rx="10" fill="#fcfcfb" stroke="#e1e0d9"/>
 <path d="M 24 34 Q 24 24 34 24 H 846 Q 856 24 856 34 V 52 H 24 Z" fill="#fcfcfb"/>
 <circle cx="43" cy="38" r="5" fill="#898781" fill-opacity="0.35"/>
 <circle cx="63" cy="38" r="5" fill="#898781" fill-opacity="0.35"/>
@@ -10,19 +10,34 @@
 <text x="440" y="42" fill="#898781" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="middle" >orwatch — examples</text>
 <text x="40" y="78" fill="#898781" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" >$</text>
 <text x="52" y="78" fill="#52514e" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" >orwatch diff --config examples/watch.toml</text>
-<text x="40" y="98" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="600" text-anchor="start" xml:space="preserve">z-ai/glm-5.3-flash — 2026-10-07 → 2026-10-08</text>
-<text x="40" y="118" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve"></text>
-<circle cx="47" cy="134" r="4" fill="#ec835a"/>
+<text x="60" y="98" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="600" text-anchor="start" xml:space="preserve">z-ai/glm-5.3-flash — 2026-10-07 → 2026-10-08</text>
+<text x="60" y="118" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve"></text>
+<circle cx="48" cy="134" r="4" fill="#ec835a"/>
 <text x="60" y="138" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">- endpoint_replaced  Parasail: parasail/fp8 → parasail/fp4</text>
-<circle cx="47" cy="154" r="4" fill="#ec835a"/>
+<circle cx="48" cy="154" r="4" fill="#ec835a"/>
 <text x="60" y="158" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">  - quantization_changed  fp8 → fp4</text>
-<text x="40" y="178" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">- endpoint_removed   NextBit (nextbit/fp8)</text>
-<circle cx="47" cy="194" r="4" fill="#d03b3b"/>
+<text x="60" y="178" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">- endpoint_removed   NextBit (nextbit/fp8)</text>
+<circle cx="48" cy="194" r="4" fill="#d03b3b"/>
 <text x="60" y="198" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="600" text-anchor="start" xml:space="preserve">- profile_eligible_changed  production: 3 → 1  (lost: NextBit, Parasail; kept: Near AI)  below</text>
-<text x="60" y="218" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="600" text-anchor="start" xml:space="preserve">min_eligible=2</text>
-<text x="40" y="248" fill="#898781" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" >$</text>
-<text x="52" y="248" fill="#52514e" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" >orwatch check --config examples/watch.toml --profile production --offline</text>
-<text x="40" y="268" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">z-ai/glm-5.3-flash: 1 eligible endpoint(s) (minimum 2)</text>
-<circle cx="47" cy="284" r="4" fill="#d03b3b"/>
-<text x="60" y="288" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="600" text-anchor="start" xml:space="preserve">exit 7</text>
+<text x="60" y="218" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="600" text-anchor="start" xml:space="preserve">  min_eligible=2</text>
+<circle cx="48" cy="234" r="4" fill="#ec835a"/>
+<text x="60" y="238" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">- pinned_dropped  production: Parasail (quantization fp4 not in fp8)</text>
+<circle cx="48" cy="254" r="4" fill="#ec835a"/>
+<text x="60" y="258" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">- pinned_dropped  production: NextBit (not listed)</text>
+<text x="40" y="288" fill="#898781" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" >$</text>
+<text x="52" y="288" fill="#52514e" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" >orwatch check --config examples/watch.toml --profile production --offline</text>
+<text x="60" y="308" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">z-ai/glm-5.3-flash: BLOCKED · snapshot 2026-10-08</text>
+<circle cx="48" cy="324" r="4" fill="#ec835a"/>
+<text x="60" y="328" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">  pinned  Reka       dropped  quantization unknown not in fp8</text>
+<circle cx="48" cy="344" r="4" fill="#ec835a"/>
+<text x="60" y="348" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">  pinned  Parasail   dropped  quantization fp4 not in fp8</text>
+<circle cx="48" cy="364" r="4" fill="#ec835a"/>
+<text x="60" y="368" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">  pinned  NextBit    dropped  not listed</text>
+<text x="60" y="388" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">  backup  Near AI    usable   near-ai/fp8</text>
+<circle cx="48" cy="404" r="4" fill="#ec835a"/>
+<text x="60" y="408" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="400" text-anchor="start" xml:space="preserve">  backup  Inceptron  dropped  missing seed</text>
+<circle cx="48" cy="424" r="4" fill="#d03b3b"/>
+<text x="60" y="428" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="600" text-anchor="start" xml:space="preserve">  → 1 usable provider, need 2 · not running</text>
+<circle cx="48" cy="444" r="4" fill="#d03b3b"/>
+<text x="60" y="448" fill="#0b0b0b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13px" font-weight="600" text-anchor="start" xml:space="preserve">exit 7</text>
 </svg>

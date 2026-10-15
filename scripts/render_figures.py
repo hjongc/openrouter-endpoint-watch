@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from orwatch.config import load_config  # noqa: E402
 from orwatch.core import (  # noqa: E402
+    CHANGE_CLASSES,
     diff_snapshots,
     eligible_endpoints,
     list_snapshots,
@@ -158,7 +159,7 @@ def architecture(mode: str, count: int, eligible_count: int) -> str:
     nodes = [
         (24, "OpenRouter", "public endpoint list", "no API key"),
         (255, "snapshot", "hourly check, saved on change", f"{count} endpoints now"),
-        (486, "diff", "10 named change classes", "fp8 → fp4 = replaced"),
+        (486, "diff", f"{len(CHANGE_CLASSES)} named change classes", "fp8 → fp4 = replaced"),
         (717, "profile check", "fp8 + seed, tools, …", f"{eligible_count} of {count} eligible now"),
     ]
     for x, label, line1, line2 in nodes:
@@ -174,7 +175,7 @@ def architecture(mode: str, count: int, eligible_count: int) -> str:
     outputs = [
         (56, p["blue"], "HISTORY.md", "change timeline"),
         (120, p["serious"], "GitHub issue", "on a breaking change"),
-        (184, p["critical"], "exit 7", "pre-run gate"),
+        (184, p["critical"], "routing decision", "ok · degraded · blocked"),
     ]
     # A shared trunk branches to vertically ordered outputs without crossing arrows.
     trunk_x, output_x, output_width, output_height = 940, 960, 220, 54
@@ -336,9 +337,7 @@ def demo(mode: str) -> str:
     diff = run_cli(diff_cmd)
     check = run_cli(check_cmd)
     diff_lines = diff.stdout.rstrip("\n").splitlines()
-    check_first = check.stdout.splitlines()[0] if check.stdout.splitlines() else ""
-    # Keep the example transcript stable; it predates check's offline source label.
-    check_first = check_first.split(" (snapshot ", 1)[0]
+    check_lines = check.stdout.rstrip("\n").splitlines()
     rows: list[tuple[str, str]] = []
     rows.append(("command", "$ orwatch diff --config examples/watch.toml"))
     for index, line in enumerate(diff_lines):
@@ -349,7 +348,7 @@ def demo(mode: str) -> str:
             rows.append(("output", line))
     rows.append(("blank", ""))
     rows.append(("command", "$ orwatch check --config examples/watch.toml --profile production --offline"))
-    rows.append(("output", check_first))
+    rows.extend(("output", line) for line in check_lines)
     rows.append(("critical", f"exit {check.returncode}"))
     title = "orwatch demo terminal"
     content: list[str] = []
@@ -359,15 +358,18 @@ def demo(mode: str) -> str:
             y += 10
             continue
         fill = p["secondary"] if kind == "command" else p["ink"]
-        weight = 600 if kind in {"header", "critical"} or (kind == "output" and "below min_eligible" in line) else 400
-        if kind in {"critical"} or (kind == "output" and "below min_eligible" in line):
-            content.append(f'<circle cx="47" cy="{y - 4}" r="4" fill="{p["critical"]}"/>')
-            x = 60
-        elif kind == "output" and ("endpoint_replaced" in line or "quantization_changed" in line):
-            content.append(f'<circle cx="47" cy="{y - 4}" r="4" fill="{p["serious"]}"/>')
-            x = 60
-        else:
-            x = 40
+        critical_line = kind == "output" and (
+            (line.lstrip().startswith("→") and "not running" in line)
+            or "below min_eligible" in line
+        )
+        serious_line = kind == "output" and "dropped" in line and "usable" not in line
+        weight = 600 if kind in {"header", "critical"} or critical_line else 400
+        # Keep every line's text origin fixed; markers occupy a separate gutter.
+        x = 40 if kind == "command" else 60
+        if kind == "critical" or critical_line:
+            content.append(f'<circle cx="48" cy="{y - 4}" r="4" fill="{p["critical"]}"/>')
+        elif serious_line or (kind == "output" and ("endpoint_replaced" in line or "quantization_changed" in line)):
+            content.append(f'<circle cx="48" cy="{y - 4}" r="4" fill="{p["serious"]}"/>')
         if kind == "command":
             cmd = line[2:]
             content.append(text(x, y, "$", fill=p["muted"], size=13, family=MONO))
@@ -377,15 +379,16 @@ def demo(mode: str) -> str:
             # SVG has no text wrapping. Break long terminal output at word boundaries.
             chunks: list[str] = []
             remaining = line
+            continuation_indent = "  " if line.startswith("- ") else ""
             while len(remaining) > 96:
                 cut = remaining.rfind(" ", 0, 97)
                 if cut <= 0:
                     cut = 96
                     chunks.append(remaining[:cut])
-                    remaining = remaining[cut:]
+                    remaining = continuation_indent + remaining[cut:]
                 else:
                     chunks.append(remaining[:cut])
-                    remaining = remaining[cut + 1:]
+                    remaining = continuation_indent + remaining[cut + 1:]
             chunks.append(remaining)
             for chunk in chunks:
                 content.append(text(x, y, chunk, fill=fill, size=13, weight=weight, family=MONO,

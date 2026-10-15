@@ -13,7 +13,7 @@
 <text x="271" y="170" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >33 endpoints now</text>
 <rect x="486" y="106" width="207" height="82" rx="10" fill="#f4f3ef" stroke="#e1e0d9" stroke-width="1"/>
 <text x="502" y="135" fill="#0b0b0b" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14px" font-weight="600" text-anchor="start" >diff</text>
-<text x="502" y="154" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >10 named change classes</text>
+<text x="502" y="154" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >12 named change classes</text>
 <text x="502" y="170" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >fp8 → fp4 = replaced</text>
 <rect x="717" y="106" width="207" height="82" rx="10" fill="#f4f3ef" stroke="#e1e0d9" stroke-width="1"/>
 <text x="733" y="135" fill="#0b0b0b" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14px" font-weight="600" text-anchor="start" >profile check</text>
@@ -42,6 +42,6 @@
 <line x1="940" y1="211" x2="956" y2="211" stroke="#898781" stroke-width="1.5"/>
 <path d="M 956 207 L 960 211 L 956 215 Z" fill="#898781"/>
 <circle cx="972" cy="211" r="5" fill="#d03b3b"/>
-<text x="985" y="207" fill="#0b0b0b" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13px" font-weight="600" text-anchor="start" >exit 7</text>
-<text x="985" y="225" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >pre-run gate</text>
+<text x="985" y="207" fill="#0b0b0b" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13px" font-weight="600" text-anchor="start" >routing decision</text>
+<text x="985" y="225" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >ok · degraded · blocked</text>
 </svg>
