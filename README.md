@@ -56,7 +56,9 @@ counts in the diagram at the top, and appends the change to
 files in [`snapshots/`](snapshots/) form a timestamped log of change events. The margin really is that
 thin and that mobile: on the day the repository went public (2026-10-15), the
 number of endpoints that could serve the profile went from **5 to 3 of 33
-within a few hours**.
+within a few hours**, then back to 5 overnight. Each recovery arrived as a
+GitHub issue opened by the workflow ([#1](https://github.com/hjongc/openrouter-endpoint-watch/issues/1),
+[#2](https://github.com/hjongc/openrouter-endpoint-watch/issues/2)).
 
 ## How it works
 
