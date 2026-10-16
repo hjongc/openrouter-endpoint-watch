@@ -260,7 +260,7 @@ changed twice, and neither time did anything raise an error.
 
 - **Sep 28.** OpenRouter's metadata started listing Reka's quantization as
   `unknown`. My fp8 filter did exactly what it was told and dropped it. The
-  fastest provider (71 tok/s) disappeared from every run, and the only trace was
+  fastest of the three providers I had pinned (71 tok/s) disappeared from every run, and the only trace was
   a call log that read *Parasail 230, NextBit 15, Reka 0*.
 - **Oct 8.** Parasail switched the model to fp4 only and NextBit vanished from
   the list. My pre-run gate stopped with `exit 7: endpoint check left no
@@ -277,7 +277,7 @@ has no history and no change feed. openrouter-endpoint-watch is that history and
 ## FAQ
 
 **OpenRouter already has a quantization filter. Why is that not enough?**
-The filter is what dropped my fastest provider without a word. A filter decides
+The filter is what dropped the fastest of my pinned providers without a word. A filter decides
 per request; it cannot tell you that the set it filters from changed yesterday.
 
 **Why not turn OpenRouter's fallbacks on?** Then a run can silently switch to
