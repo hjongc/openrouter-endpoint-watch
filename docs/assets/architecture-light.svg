@@ -18,7 +18,7 @@
 <rect x="717" y="106" width="207" height="82" rx="10" fill="#f4f3ef" stroke="#e1e0d9" stroke-width="1"/>
 <text x="733" y="135" fill="#0b0b0b" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14px" font-weight="600" text-anchor="start" >profile check</text>
 <text x="733" y="154" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >fp8 + seed, tools, …</text>
-<text x="733" y="170" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >2 of 35 eligible now</text>
+<text x="733" y="170" fill="#52514e" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12px" font-weight="400" text-anchor="start" >5 of 35 eligible now</text>
 <line x1="231" y1="147" x2="251" y2="147" stroke="#898781" stroke-width="1.5"/>
 <path d="M 251 143 L 255 147 L 251 151 Z" fill="#898781"/>
 <line x1="462" y1="147" x2="482" y2="147" stroke="#898781" stroke-width="1.5"/>
